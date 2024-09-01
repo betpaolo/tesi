@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/bgvbase.dir/main.cpp.o -o bgvbase  /usr/local/lib/libseal-4.1.a 

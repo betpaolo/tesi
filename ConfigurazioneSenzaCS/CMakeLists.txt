@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.10)
+project(bgvbase VERSION 1.0)
+add_executable(bgvbase main.cpp)
+set(CMAKE_BUILD_TYPE Debug)
+find_package(SEAL)
+target_link_libraries(bgvbase SEAL::seal)

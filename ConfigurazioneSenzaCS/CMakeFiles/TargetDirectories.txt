@@ -1,0 +1,3 @@
+/home/paolo/dirTesi/tesi/ConfigurazioneSenzaCS/CMakeFiles/bgvbase.dir
+/home/paolo/dirTesi/tesi/ConfigurazioneSenzaCS/CMakeFiles/edit_cache.dir
+/home/paolo/dirTesi/tesi/ConfigurazioneSenzaCS/CMakeFiles/rebuild_cache.dir

@@ -4,7 +4,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <arpa/inet.h> 
+#include <arpa/inet.h>
+#include "seal/seal.h" 
 //#include "seal/seal.h"
 
 //using namespace seal;

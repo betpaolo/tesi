@@ -1,0 +1,443 @@
+#include <stdio.h>
+#include <iostream>
+#include <vector>
+#include <random>
+#include <chrono>
+#include "openssl/evp.h"
+//#include <seal/seal.h>
+#include <fstream>
+#include <cstdlib>  // Per la funzione system
+#include "seal/seal.h"
+#include "seal/util/uintcore.h"
+
+using namespace std;
+using namespace seal;
+
+// Funzione per generare dati casuali
+
+
+std::vector<uint8_t> generate_random_data(size_t size) {
+    std::vector<uint8_t> data(size);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<uint8_t> dis(0, 255);
+    std::generate(data.begin(), data.end(), [&](){ return dis(gen); });
+    return data;
+}
+
+
+// Funzione per crittografare con AES
+std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key, const std::vector<uint8_t>& iv) {
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    std::vector<uint8_t> ciphertext(plaintext.size() + EVP_MAX_BLOCK_LENGTH);
+    int len;
+    
+    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
+    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), plaintext.size());
+    int ciphertext_len = len;
+    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
+    ciphertext_len += len;
+    
+    EVP_CIPHER_CTX_free(ctx);
+    ciphertext.resize(ciphertext_len);
+    return ciphertext;
+}
+
+
+
+
+std::uint64_t vector_to_uint64(const std::vector<uint8_t>& plaintext) {
+    std::uint64_t result = 0;
+
+    // Assicurati che il numero di byte non superi 8, poiché uint64_t è di 8 byte.
+    std::size_t size = std::min(plaintext.size(), static_cast<std::size_t>(8));
+
+    // Combina i byte nel uint64_t, dal byte più significativo al meno significativo.
+    for (std::size_t i = 0; i < size; ++i) {
+        result |= static_cast<std::uint64_t>(plaintext[i]) << (8 * i);
+    }
+
+    return result;
+}
+/*
+void print_matrix(std::vector<T> matrix, std::size_t row_size)
+{
+    /*
+    We're not going to print every column of the matrix (there are 2048). Instead
+    print this many slots from beginning and end of the matrix.
+    
+    std::size_t print_size = 5;
+
+    std::cout << std::endl;
+    std::cout << "    [";
+    for (std::size_t i = 0; i < print_size; i++)
+    {
+        std::cout << std::setw(3) << std::right << matrix[i] << ",";
+    }
+    std::cout << std::setw(3) << " ...,";
+    for (std::size_t i = row_size - print_size; i < row_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ((i != row_size - 1) ? "," : " ]\n");
+    }
+    std::cout << "    [";
+    for (std::size_t i = row_size; i < row_size + print_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ",";
+    }
+    std::cout << std::setw(3) << " ...,";
+    for (std::size_t i = 2 * row_size - print_size; i < 2 * row_size; i++)
+    {
+        std::cout << std::setw(3) << matrix[i] << ((i != 2 * row_size - 1) ? "," : " ]\n");
+    }
+    std::cout << std::endl;
+}*/
+// Funzione per crittografare con SEAL (BGV)
+
+void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
+
+/*
+    [BatchEncoder] (For BFV or BGV scheme)
+
+    Let N denote the poly_modulus_degree and T denote the plain_modulus. Batching
+    allows the BFV plaintext polynomials to be viewed as 2-by-(N/2) matrices, with
+    each element an integer modulo T. In the matrix view, encrypted operations act
+    element-wise on encrypted matrices, allowing the user to obtain speeds-ups of
+    several orders of magnitude in fully vectorizable computations. Thus, in all
+    but the simplest computations, batching should be the preferred method to use
+    with BFV, and when used properly will result in implementations outperforming
+    anything done without batching.
+
+    In a later example, we will demonstrate how to use the BGV scheme. Batching
+    works similarly for the BGV scheme to this example for the BFV scheme. For example,
+    simply changing `scheme_type::bfv` into `scheme_type::bgv` can make this example
+    work for the BGV scheme.
+   
+       +----------------------------------------------------+
+        | poly_modulus_degree | max coeff_modulus bit-length |
+        +---------------------+------------------------------+
+        | 1024                | 27                           |
+        | 2048                | 54                           |
+        | 4096                | 109                          |
+        | 8192                | 218                          |
+        | 16384               | 438                          |
+        | 32768               | 881                          |
+        +---------------------+------------------------------+ 
+        */
+    EncryptionParameters parms(scheme_type::bfv);
+    size_t poly_modulus_degree = 4096;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+  cout << "An example of invalid parameters" << endl;
+    /*
+    To enable batching, we need to set the plain_modulus to be a prime number
+    congruent to 1 modulo 2*poly_modulus_degree. Microsoft SEAL provides a helper
+    method for finding such a prime. In this example we create a 20-bit prime
+    that supports batching.
+    */
+    parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 16));
+
+    SEALContext context(parms);
+
+
+   
+ 
+    cout << "Parameter validation (failed): " << context.parameter_error_message() << endl << endl;
+
+   
+
+    //print_parameters(context);
+    cout << endl;
+
+    /*
+    We can verify that batching is indeed enabled by looking at the encryption
+    parameter qualifiers created by SEALContext.
+    */
+    auto qualifiers = context.first_context_data()->qualifiers();
+    cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
+
+    KeyGenerator keygen(context);
+    SecretKey secret_key = keygen.secret_key();
+    PublicKey public_key;
+    keygen.create_public_key(public_key);
+     cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
+    RelinKeys relin_keys;
+    keygen.create_relin_keys(relin_keys);
+     cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
+    Encryptor encryptor(context, public_key);
+    Evaluator evaluator(context);
+    Decryptor decryptor(context, secret_key);
+
+    /*
+    Batching is done through an instance of the BatchEncoder class.
+    */
+    BatchEncoder batch_encoder(context);
+
+    /*
+    The total number of batching `slots' equals the poly_modulus_degree, N, and
+    these slots are organized into 2-by-(N/2) matrices that can be encrypted and
+    computed on. Each slot contains an integer modulo plain_modulus.
+    */
+    size_t slot_count = batch_encoder.slot_count();
+    size_t row_size = slot_count / 2;
+    cout << "Plaintext matrix row size: " << row_size << endl;
+
+    /*
+    The matrix plaintext is simply given to BatchEncoder as a flattened vector
+    of numbers. The first `row_size' many numbers form the first row, and the
+    rest form the second row. Here we create the following matrix:
+
+        [ 0,  1,  2,  3,  0,  0, ...,  0 ]
+        [ 4,  5,  6,  7,  0,  0, ...,  0 ]
+
+// 6. Preparazione dei dati (20 byte = 160 bit)
+    vector<uint64_t> plaintext_vector(batch_encoder.slot_count(), 0);
+
+    // Supponiamo che i nostri 20 byte di dati siano questi:
+    vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04, 0x05, 
+                            0x06, 0x07, 0x08, 0x09, 0x0A, 
+                            0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 
+                            0x10, 0x11, 0x12, 0x13, 0x14};
+
+    // Conversione dei 20 byte in uint64_t per il batch encoder
+    for (size_t i = 0; i < data.size(); i++) {
+        plaintext_vector[i] = static_cast<uint64_t>(data[i]);
+    }
+
+
+
+
+
+
+
+        
+    */
+   // Supponiamo che i nostri 20 byte di dati siano questi:
+    vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04, 0x05, 
+                            0x06, 0x07, 0x08, 0x09, 0x0A, 
+                            0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 
+                            0x10, 0x11, 0x12, 0x13, 0x14};
+
+    vector<uint64_t> pod_matrix(slot_count, 0ULL);
+    // Conversione dei 20 byte in uint64_t per il batch encoder
+    for (size_t i = 0; i < data.size(); i++) {
+        pod_matrix[i] = static_cast<uint64_t>(data[i]);
+    }
+   
+    cout << "Input plaintext matrix:" << endl;
+   // print_matrix(pod_matrix, row_size);
+
+    /*
+    First we use BatchEncoder to encode the matrix into a plaintext polynomial.
+    */
+    Plaintext plain_matrix;
+    //print_line(__LINE__);
+    cout << "Encode plaintext matrix:" << endl;
+    batch_encoder.encode(pod_matrix, plain_matrix);
+
+    /*
+    We can instantly decode to verify correctness of the encoding. Note that no
+    encryption or decryption has yet taken place.
+    */
+    //vector<uint64_t> pod_result;
+    //cout << "    + Decode plaintext matrix ...... Correct." << endl;
+    //batch_encoder.decode(plain_matrix, pod_result);
+    //print_matrix(pod_result, row_size);
+
+    /*
+    Next we encrypt the encoded plaintext.
+    */
+    Ciphertext encrypted_matrix;
+    //print_line(__LINE__);
+    cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
+    encryptor.encrypt(plain_matrix, encrypted_matrix);
+   // cout << "Encryption size." << encrypted_matrix.size()<< endl;
+   // cout << "    + Noise budget in encrypted_matrix: " << decryptor.invariant_noise_budget(encrypted_matrix) << " bits"
+   //      << endl;
+     stringstream data_stream;
+     encrypted_matrix.save(data_stream);
+}
+
+
+
+void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
+   
+   EncryptionParameters parms(scheme_type::ckks);
+
+    size_t poly_modulus_degree = 8192;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40, 40, 40, 40, 40 }));
+
+    /*
+    We create the SEALContext as usual and print the parameters.
+    */
+    SEALContext context(parms);
+   // print_parameters(context);
+   
+
+    /*
+    Keys are created the same way as for the BFV scheme.
+    */
+    KeyGenerator keygen(context);
+    auto secret_key = keygen.secret_key();
+    PublicKey public_key;
+    keygen.create_public_key(public_key);
+    RelinKeys relin_keys;
+    keygen.create_relin_keys(relin_keys);
+
+    /*
+    We also set up an Encryptor, Evaluator, and Decryptor as usual.
+    */
+    Encryptor encryptor(context, public_key);
+    Evaluator evaluator(context);
+    Decryptor decryptor(context, secret_key);
+
+    /*
+    To create CKKS plaintexts we need a special encoder: there is no other way
+    to create them. The BatchEncoder cannot be used with the
+    CKKS scheme. The CKKSEncoder encodes vectors of real or complex numbers into
+    Plaintext objects, which can subsequently be encrypted. At a high level this
+    looks a lot like what BatchEncoder does for the BFV scheme, but the theory
+    behind it is completely different.
+    */
+    CKKSEncoder encoder(context);
+
+    /*
+    In CKKS the number of slots is poly_modulus_degree / 2 and each slot encodes
+    one real or complex number. This should be contrasted with BatchEncoder in
+    the BFV scheme, where the number of slots is equal to poly_modulus_degree
+    and they are arranged into a matrix with two rows.
+    */
+   
+    size_t slot_count = encoder.slot_count();
+    cout << "Number of slots: " << slot_count << endl;
+
+    /*
+    We create a small vector to encode; the CKKSEncoder will implicitly pad it
+    with zeros to full size (poly_modulus_degree / 2) when encoding.
+    */
+    vector<double> input{ 0.0, 1.1, 2.2, 3.3 };
+    cout << "Input vector: " << endl;
+    //print_vector(input);
+
+    /*
+    Now we encode it with CKKSEncoder. The floating-point coefficients of `input'
+    will be scaled up by the parameter `scale'. This is necessary since even in
+    the CKKS scheme the plaintext elements are fundamentally polynomials with
+    integer coefficients. It is instructive to think of the scale as determining
+    the bit-precision of the encoding; naturally it will affect the precision of
+    the result.
+
+    In CKKS the message is stored modulo coeff_modulus (in BFV it is stored modulo
+    plain_modulus), so the scaled message must not get too close to the total size
+    of coeff_modulus. In this case our coeff_modulus is quite large (200 bits) so
+    we have little to worry about in this regard. For this simple example a 30-bit
+    scale is more than enough.
+    */
+    Plaintext plain;
+    double scale = pow(2.0, 30); //Il parametro scale in CKKS è fondamentale per controllare la precisione e l'accuratezza delle operazioni aritmetiche sui dati cifrati. La scelta del valore di scale dipende dal tipo di operazioni previste, dalla precisione necessaria, e dal modulo coefficiente disponibile
+   // print_line(__LINE__);
+    cout << "Encode input vector." << endl;
+    encoder.encode(input, scale, plain);
+
+    /*
+    We can instantly decode to check the correctness of encoding.
+    */
+    vector<double> output;
+   // cout << "    + Decode input vector ...... Correct." << endl;
+    //encoder.decode(plain, output);
+   // print_vector(output);
+
+    /*
+    The vector is encrypted the same was as in BFV.
+    */
+    Ciphertext encrypted;
+   // print_line(__LINE__);
+    cout << "Encrypt input vector, square, and relinearize." << endl;
+    encryptor.encrypt(plain, encrypted);
+ //FINE CRITTOGRAFIA
+    /*
+    Basic operations on the ciphertexts are still easy to do. Here we square the
+    ciphertext, decrypt, decode, and print the result. We note also that decoding
+    returns a vector of full size (poly_modulus_degree / 2); this is because of
+    the implicit zero-padding mentioned above.
+    */
+    evaluator.square_inplace(encrypted);
+    evaluator.relinearize_inplace(encrypted, relin_keys);
+
+    /*
+    We notice that the scale in the result has increased. In fact, it is now the
+    square of the original scale: 2^60.
+    */
+    cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
+         << endl;
+
+    //print_line(__LINE__);
+    cout << "Decrypt and decode." << endl;
+    decryptor.decrypt(encrypted, plain);
+    encoder.decode(plain, output);
+    cout << "    + Result vector ...... Correct." << endl;
+    //print_vector(output);
+
+    /*
+    The CKKS scheme allows the scale to be reduced between encrypted computations.
+    This is a fundamental and critical feature that makes CKKS very powerful and
+    flexible. We will discuss it in great detail in `3_levels.cpp' and later in
+    `4_ckks_basics.cpp'.
+    */
+}
+
+// Funzione principale che incapsula il pacchetto
+
+void encapsulate_packet(size_t packet_size) {
+  
+    // Generazione dati casuali
+    std::vector<uint8_t> data = generate_random_data(packet_size);
+
+    // Chiavi e IV per AES
+    std::vector<uint8_t> key(32);  // AES-256
+    std::vector<uint8_t> iv(16);   // IV
+    std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
+    std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
+//----------------------------------------------------------------------
+    // Avvio programma Python prima della crittografia AES
+    //system("python3 pre_encryption.py aes");
+   // string filename = "output_data.csv"; // Nome del file che vuoi passare
+    //string command = "python3 /path/to/your/script.py --output " + filename;
+
+    // Esegui il comando
+    //int result = std::system(command.c_str());
+//---------------------------------------------------------------------------------
+    // Crittografia AES
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
+    std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl;
+
+    // Termina la misurazione del tempo
+    auto end = std::chrono::high_resolution_clock::now();
+    // Calcola la durata
+    std::chrono::duration<double> duration = end - start;
+
+    // Stampa il tempo trascorso
+    std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
+    // Avvio programma Python prima della crittografia omomorfica
+    //system("python3 pre_encryption.py homomorphic");
+
+    // Crittografia Omomorfica (BGV)
+     seal_encrypt_bfv(data);
+    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
+
+     seal_encrypt_ckks(data);
+    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_ckks.size() << std::endl;
+
+
+    // Confronto e Output
+   // std::cout << "AES Ciphertext Size: " << aes_ciphertext.size() << std::endl;
+  //  std::cout << "Homomorphic Ciphertext Size: " << seal_ciphertext.size() << std::endl;
+}
+
+int main() {
+    size_t packet_size = 8; // Dimensione del pacchetto
+    encapsulate_packet(packet_size);
+    return 0;
+}

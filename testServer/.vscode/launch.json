@@ -1,8 +1,7 @@
 {
     "version": "0.2.0",
     "configurations": [
-
-        {  
+        {
             "name": "Debug",
             "type": "cppdbg",
             "request": "launch",
@@ -11,10 +10,11 @@
             "cwd": "${workspaceFolder}",
             "environment": [],
             "externalConsole": false,
+            "program": "${workspaceFolder}/testServer",
             "linux": {
                 "MIMode": "gdb",
                 "miDebuggerPath": "gdb",
-                "program": "${workspaceFolder}/output/main"
+                "program": "${workspaceFolder}/testServer"
             },
             "osx": {
                 "MIMode": "lldb",
@@ -27,6 +27,14 @@
                 "program": "${workspaceFolder}/output/main.exe"
             },
             "preLaunchTask": "build"
+        },
+        {
+            "type": "cmake",
+            "request": "launch",
+            "name": "Debug portfile(s)",
+            "cmakeDebugType": "external",
+            "pipeName": "\\\\.\\pipe\\vcpkg_ext_portfile_dbg",
+            "preLaunchTask": "Debug vcpkg commands"
         }
     ]
 }

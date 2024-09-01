@@ -1,0 +1,1 @@
+/usr/bin/c++ -g CMakeFiles/testServer.dir/main.cpp.o -o testServer  /usr/local/lib/libseal-4.1.a 

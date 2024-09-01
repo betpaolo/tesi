@@ -1,0 +1,9 @@
+{
+    "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+
+//"C_Cpp.default.includePath": [
+        
+      //  "/usr/local/include/SEAL-4.1/",
+      //  "/home/paolo/dirTesi/tesi/ConfigurazioneSenzaCS/"
+    //]
+}

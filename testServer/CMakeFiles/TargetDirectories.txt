@@ -1,0 +1,3 @@
+/home/paolo/dirTesi/tesi/testServer/CMakeFiles/testServer.dir
+/home/paolo/dirTesi/tesi/testServer/CMakeFiles/edit_cache.dir
+/home/paolo/dirTesi/tesi/testServer/CMakeFiles/rebuild_cache.dir

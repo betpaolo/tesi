@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/paolo/dirTesi/Tesi_v2/build",
+  "command": "/usr/bin/c++  -isystem /usr/local/include/SEAL-4.1 -g -o CMakeFiles/HEPowerConsumption.dir/main.cpp.o -c /home/paolo/dirTesi/Tesi_v2/main.cpp",
+  "file": "/home/paolo/dirTesi/Tesi_v2/main.cpp"
+}
+]

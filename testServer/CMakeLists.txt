@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.10)
+project(testServer VERSION 1.0)
+add_executable(testServer main.cpp)
+set(CMAKE_BUILD_TYPE Debug)
+find_package(SEAL)
+target_link_libraries(testServer SEAL::seal)
