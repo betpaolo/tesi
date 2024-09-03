@@ -25,6 +25,20 @@ std::vector<uint8_t> generate_random_data(size_t size) {
     return data;
 }
 
+std::vector<double> convertToDouble(const std::vector<uint8_t> &input)
+{
+    std::vector<double> result;
+    result.reserve(input.size());  // Alloca spazio per evitare riallocazioni durante l'inserimento
+
+    // Converte ogni elemento del vector uint8_t in double e lo aggiunge a result
+    for (auto byte : input)
+    {
+        result.push_back(static_cast<double>(byte));
+    }
+
+    return result;
+}
+
 
 // Funzione per crittografare con AES
 std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key, const std::vector<uint8_t>& iv) {
@@ -212,15 +226,12 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
         
     */
    // Supponiamo che i nostri 20 byte di dati siano questi:
-    vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04, 0x05, 
-                            0x06, 0x07, 0x08, 0x09, 0x0A, 
-                            0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 
-                            0x10, 0x11, 0x12, 0x13, 0x14};
+   // vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04, 0x05,  0x06, 0x07, 0x08, 0x09, 0x0A,     0x0B, 0x0C, 0x0D, 0x0E, 0x0F,                             0x10, 0x11, 0x12, 0x13, 0x14};
 
     vector<uint64_t> pod_matrix(slot_count, 0ULL);
     // Conversione dei 20 byte in uint64_t per il batch encoder
-    for (size_t i = 0; i < data.size(); i++) {
-        pod_matrix[i] = static_cast<uint64_t>(data[i]);
+    for (size_t i = 0; i < plaintext.size(); i++) {
+        pod_matrix[i] = static_cast<uint64_t>(plaintext[i]);
     }
    
     cout << "Input plaintext matrix:" << endl;
@@ -260,10 +271,11 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
 
 
 void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
-   
+  
+   vector<double> input= convertToDouble(plaintext);
    EncryptionParameters parms(scheme_type::ckks);
 
-    size_t poly_modulus_degree = 8192;
+    size_t poly_modulus_degree = 4096;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40, 40, 40, 40, 40 }));
 
@@ -315,7 +327,7 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
     We create a small vector to encode; the CKKSEncoder will implicitly pad it
     with zeros to full size (poly_modulus_degree / 2) when encoding.
     */
-    vector<double> input{ 0.0, 1.1, 2.2, 3.3 };
+    //vector<double> input{ 0.0, 1.1, 2.2, 3.3 };
     cout << "Input vector: " << endl;
     //print_vector(input);
 
@@ -386,8 +398,26 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
     */
 }
 
-// Funzione principale che incapsula il pacchetto
 
+void close_program(const std::string& nomeProgramma){
+    
+    // Costruisce il comando pkill usando il nome del programma
+    std::string comando = "pkill -f " + nomeProgramma;
+    
+    // Esegue il comando di sistema per terminare il programma
+    int result = system(comando.c_str());
+    
+    // Controlla il risultato dell'esecuzione del comando
+    if (result == 0) {
+        // Comando eseguito con successo
+        cout<<"programma chiuso correttamente"<<endl;
+    
+    } else {
+       cout<<"programma non chiuso correttamente"<<endl;
+    }
+
+}
+// Funzione principale che incapsula il pacchetto
 void encapsulate_packet(size_t packet_size) {
   
     // Generazione dati casuali
@@ -400,9 +430,9 @@ void encapsulate_packet(size_t packet_size) {
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
 //----------------------------------------------------------------------
     // Avvio programma Python prima della crittografia AES
-    //system("python3 pre_encryption.py aes");
-   // string filename = "output_data.csv"; // Nome del file che vuoi passare
-    //string command = "python3 /path/to/your/script.py --output " + filename;
+    system("python3 autoGainTimeExportVariableNameMicrosecond.py aes");
+    //string filename = "output_data.csv"; // Nome del file che vuoi passare
+   // string command = "python3 /path/to/your/script.py --output " + filename;
 
     // Esegui il comando
     //int result = std::system(command.c_str());
@@ -412,7 +442,8 @@ void encapsulate_packet(size_t packet_size) {
 
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl;
-
+    // Chiude il programma Python avviato precedentemente
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
     // Termina la misurazione del tempo
     auto end = std::chrono::high_resolution_clock::now();
     // Calcola la durata
@@ -424,13 +455,25 @@ void encapsulate_packet(size_t packet_size) {
     //system("python3 pre_encryption.py homomorphic");
 
     // Crittografia Omomorfica (BGV)
-     seal_encrypt_bfv(data);
-    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
 
+    // Avvio programma Python prima della crittografia BGV
+    system("python3 autoGainTimeExportVariableNameMicrosecond.py bgv");
+    auto start2 = std::chrono::high_resolution_clock::now();
+    seal_encrypt_bfv(data);
+    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration2 = end2 - start2;
+    std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
+
+    system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
+    auto start3 = std::chrono::high_resolution_clock::now();
      seal_encrypt_ckks(data);
     //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_ckks.size() << std::endl;
-
-
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    auto end3 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> duration3 = end3 - start3;
+    std::cout << "Tempo trascorso: " << duration3.count() << " secondi" << std::endl;
     // Confronto e Output
    // std::cout << "AES Ciphertext Size: " << aes_ciphertext.size() << std::endl;
   //  std::cout << "Homomorphic Ciphertext Size: " << seal_ciphertext.size() << std::endl;
