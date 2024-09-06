@@ -9,9 +9,6 @@
 #include <cstdlib>  // Per la funzione system
 #include "seal/seal.h"
 #include "seal/util/uintcore.h"
-#include <unistd.h>  // Include per fork(), exec()
-#include <signal.h>  // Include per kill()
-#include <thread> 
 
 using namespace std;
 using namespace seal;
@@ -370,15 +367,15 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
     */
 }
 
-/*
+
 void close_program(const std::string& nomeProgramma){
     
     // Costruisce il comando pkill usando il nome del programma
-    //std::string comando = "pkill -f " + nomeProgramma;
-   std::string comando = "pkill -f 'python3 " + nomeProgramma + "'";
-    int result = system(comando.c_str()); 
+    std::string comando = "pkill -f " + nomeProgramma;
+    
     // Esegue il comando di sistema per terminare il programma
-   
+    int result = system(comando.c_str());
+    
     // Controlla il risultato dell'esecuzione del comando
     if (result == 0) {
         // Comando eseguito con successo
@@ -388,43 +385,7 @@ void close_program(const std::string& nomeProgramma){
        cout<<"programma non chiuso correttamente"<<endl;
     }
 
-}*/
-// Funzione per avviare lo script Python e restituire il PID
-pid_t avviaScriptPython() {
-    pid_t pid = fork(); // Crea un processo figlio
-
-    if (pid == 0) {
-        // Questo è il processo figlio
-	cout<<"processo figlio"<<endl; 
-        const char* comando = "python3";
-        const char* script = "autoGainTimeExportAes.py";  // Modifica con il percorso effettivo del tuo script Python
-        char* const args[] = { (char*)comando, (char*)script, NULL };
-
-        execvp(comando, args); // Esegue lo script Python
-
-        std::cerr << "Errore nell'esecuzione dello script Python." << std::endl;
-        exit(1); // Esci se exec fallisce
-    } else if (pid > 0) {
-        // Questo è il processo padre
-        std::cout << "Script Python avviato con PID: " << pid << std::endl;
-        return pid;  // Restituisce il PID del processo figlio
-    } else {
-        // Errore nel fork
-        std::cerr << "Errore nella creazione del processo figlio." << std::endl;
-        return -1;
-    }
 }
-
-// Funzione per terminare il processo Python usando il PID
-void terminaScriptPython(pid_t pid) {
-    if (kill(pid, SIGTERM) == 0) {
-        std::cout << "Script Python terminato correttamente." << std::endl;
-    } else {
-        std::cerr << "Errore nella terminazione dello script Python." << std::endl;
-    }
-}
-
-
 // Funzione principale che incapsula il pacchetto
 void encapsulate_packet(size_t packet_size) {
   
@@ -437,10 +398,10 @@ void encapsulate_packet(size_t packet_size) {
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
 //----------------------------------------------------------------------
-  //  std::string comando = "python3 autoGainTimeExportAes.py ";
+    std::string comando = "python3 autoGainTimeExportAes.py ";
 
     // Esegue il comando di sistema
-//    system(comando.c_str()); 
+    system(comando.c_str()); 
 
     // Avvio programma Python prima della crittografia AES
 //    system("python3 autoGainTimeExportVariableNameMicrosecond.py aes");
@@ -450,34 +411,19 @@ void encapsulate_packet(size_t packet_size) {
     // Esegui il comando
     //int result = std::system(command.c_str());
 //---------------------------------------------------------------------------------
-  
-
-
-
-  // Crittografia AES
-pid_t pid = avviaScriptPython();
-sleep(5);  // Attende 5 secondi
-
-auto start= std::chrono::high_resolution_clock::now();
-    if (pid > 0) {
-       
-
+    // Crittografia AES
+    auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl;
-	    
-        // Termina lo script Python usando il PID
-        terminaScriptPython(pid);
-   }
 
 
+std::string comandoChiusura = "pkill -f 'python3 autoGainTimeExportAes.py'";
+    int result = system(comando.c_str());
 
 
-
-
-
-// Chiude il programma Python avviato precedentemente
-  //  close_program("autoGainTimeExportAes.py");
+    // Chiude il programma Python avviato precedentemente
+    close_program("autoGainTimeExportAes.py");
     // Termina la misurazione del tempo
     auto end = std::chrono::high_resolution_clock::now();
     // Calcola la durata
@@ -496,20 +442,20 @@ auto start= std::chrono::high_resolution_clock::now();
 // std::string comando = "python3 autoGainTimeExportVariableNameMicrosecond.py --output aes  &";
 
     // Esegue il comando di sistema
-    //int result = system(comando.c_str());  
+    int result = system(comando.c_str());  
   auto start2 = std::chrono::high_resolution_clock::now();
     seal_encrypt_bfv(data);
     //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
-    //close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
 
-    //system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
+    system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
     auto start3 = std::chrono::high_resolution_clock::now();
      seal_encrypt_ckks(data);
     //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_ckks.size() << std::endl;
-   // close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
     auto end3 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration3 = end3 - start3;
     std::cout << "Tempo trascorso: " << duration3.count() << " secondi" << std::endl;

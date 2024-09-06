@@ -9,9 +9,6 @@
 #include <cstdlib>  // Per la funzione system
 #include "seal/seal.h"
 #include "seal/util/uintcore.h"
-#include <unistd.h>  // Include per fork(), exec()
-#include <signal.h>  // Include per kill()
-#include <thread> 
 
 using namespace std;
 using namespace seal;
@@ -395,9 +392,8 @@ pid_t avviaScriptPython() {
 
     if (pid == 0) {
         // Questo è il processo figlio
-	cout<<"processo figlio"<<endl; 
         const char* comando = "python3";
-        const char* script = "autoGainTimeExportAes.py";  // Modifica con il percorso effettivo del tuo script Python
+        const char* script = "autoGainTimeExportVariableNameMicrosecond.py";  // Modifica con il percorso effettivo del tuo script Python
         char* const args[] = { (char*)comando, (char*)script, NULL };
 
         execvp(comando, args); // Esegue lo script Python
@@ -423,8 +419,6 @@ void terminaScriptPython(pid_t pid) {
         std::cerr << "Errore nella terminazione dello script Python." << std::endl;
     }
 }
-
-
 // Funzione principale che incapsula il pacchetto
 void encapsulate_packet(size_t packet_size) {
   
@@ -437,47 +431,40 @@ void encapsulate_packet(size_t packet_size) {
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
 //----------------------------------------------------------------------
-  //  std::string comando = "python3 autoGainTimeExportAes.py ";
+   // std::string comando = "python3 autoGainTimeExportAes.py ";
 
     // Esegue il comando di sistema
-//    system(comando.c_str()); 
+///    system(comando.c_str()); 
 
     // Avvio programma Python prima della crittografia AES
-//    system("python3 autoGainTimeExportVariableNameMicrosecond.py aes");
-    //string filename = "output_data.csv"; // Nome del file che vuoi passare
-   // string command = "python3 /path/to/your/script.py --output " + filename;
 
     // Esegui il comando
     //int result = std::system(command.c_str());
 //---------------------------------------------------------------------------------
-  
+    // Crittografia AES
+    
+// Avvia lo script Python e ottieni il PID
+    pid_t pid = avviaScriptPython();
 
-
-
-  // Crittografia AES
-pid_t pid = avviaScriptPython();
-sleep(5);  // Attende 5 secondi
-
-auto start= std::chrono::high_resolution_clock::now();
     if (pid > 0) {
-       
 
+        // Termina lo script Python usando il PID
+        terminaScriptPython(pid);
+    
+auto start = std::chrono::high_resolution_clock::now();
 
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl;
-	    
+   
         // Termina lo script Python usando il PID
         terminaScriptPython(pid);
-   }
+    }
 
 
 
 
 
-
-
-// Chiude il programma Python avviato precedentemente
-  //  close_program("autoGainTimeExportAes.py");
+//    close_program("autoGainTimeExportAes.py");
     // Termina la misurazione del tempo
     auto end = std::chrono::high_resolution_clock::now();
     // Calcola la durata
@@ -496,20 +483,20 @@ auto start= std::chrono::high_resolution_clock::now();
 // std::string comando = "python3 autoGainTimeExportVariableNameMicrosecond.py --output aes  &";
 
     // Esegue il comando di sistema
-    //int result = system(comando.c_str());  
+    int result = system(comando.c_str());  
   auto start2 = std::chrono::high_resolution_clock::now();
     seal_encrypt_bfv(data);
     //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
-    //close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
     auto end2 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration2 = end2 - start2;
     std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
 
-    //system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
+    system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
     auto start3 = std::chrono::high_resolution_clock::now();
      seal_encrypt_ckks(data);
     //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_ckks.size() << std::endl;
-   // close_program("autoGainTimeExportVariableNameMicrosecond.py");
+    close_program("autoGainTimeExportVariableNameMicrosecond.py");
     auto end3 = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> duration3 = end3 - start3;
     std::cout << "Tempo trascorso: " << duration3.count() << " secondi" << std::endl;
