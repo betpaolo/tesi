@@ -8,8 +8,9 @@
 #include <cstdlib>  // Per la funzione system
 #include "seal/seal.h"
 #include "seal/util/uintcore.h"
-#include <unistd.h>  // Include per fork(), exec()
+//#include <unistd.h>  // Include per fork(), exec()
 #include <thread> 
+#include <iomanip>
 
 using namespace std;
 using namespace seal;
@@ -209,7 +210,7 @@ pid_t pythonPid = -1;  // Variabile per il PID del processo Python
 
 void startPythonScript() {
     // Usa popen per avviare lo script Python e ottenere il PID
-    FILE* pipe = popen("python3 /path/to/your_script.py & echo $!", "r"); // Modifica con il percorso corretto
+    FILE* pipe = popen("python3 autoGainTimeExportAes.py & echo $!", "r"); // Modifica con il percorso corretto
     if (!pipe) {
         std::cerr << "Errore: impossibile avviare il programma Python." << std::endl;
         return;
@@ -236,10 +237,29 @@ void startPythonScript() {
 
 // Funzione principale che incapsula il pacchetto
 void encapsulate_packet(size_t packet_size) {
-  
+    // Ottieni l'ora corrente usando il clock di sistema ad alta risoluzione
+    auto now = std::chrono::system_clock::now();
+
+    // Converti l'ora corrente in un oggetto time_t
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+
+    // Ottieni i microsecondi dall'ora corrente
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
+
+    // Converti l'oggetto time_t in un formato leggibile
+    std::tm* local_time = std::localtime(&now_c);
+
+    // Usa std::strftime per formattare l'ora in modo compatibile
+    char buffer[100];
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", local_time);
+
+
+ 
     // Generazione dati casuali
     std::vector<uint8_t> data = generate_random_data(packet_size);
     // Avvia un nuovo thread per eseguire lo script Python
+
+    cout << buffer << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     auto start= std::chrono::high_resolution_clock::now();
     std::thread pythonThread(startPythonScript);
     
@@ -249,6 +269,7 @@ void encapsulate_packet(size_t packet_size) {
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
+    std::cout << std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl; 
          // Imposta "running" su false per fermare il thread
@@ -259,35 +280,39 @@ void encapsulate_packet(size_t packet_size) {
     if (pythonThread.joinable()) {
         pythonThread.join();
     }
-    
+    std::cout<<"fine AES" << std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     // Calcola la durata
 //-----------------------------------------------------------------------------------
     std::chrono::duration<double> duration = end - start;
     // Stampa il tempo trascorso
     std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
 
-
+std::cout << "crittografia omomorfica BGV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     // Crittografia Omomorfica (BGV)
-
-
-// std::string comando = "python3 autoGainTimeExportVariableNameMicrosecond.py --output aes  &";
-
-    // Esegue il comando di sistema
-    //int result = system(comando.c_str());  
-  auto start2 = std::chrono::high_resolution_clock::now();
-    seal_encrypt_bfv(data);
-    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_bgv.size() << std::endl;
-    //close_program("autoGainTimeExportVariableNameMicrosecond.py");
-    auto end2 = std::chrono::high_resolution_clock::now();
+   auto start2 = std::chrono::high_resolution_clock::now();
+   thread pythonThreadBFV(startPythonScript);   
+ seal_encrypt_bfv(data);
+    
+    
+running = false;    
+auto end2 = std::chrono::high_resolution_clock::now();
+if (pythonThreadBFV.joinable()) {
+        pythonThreadBFV.join();
+    }
+std::cout << "fine crittografia BGV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     std::chrono::duration<double> duration2 = end2 - start2;
     std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
+running = true;
 
-    //system("python3 autoGainTimeExportVariableNameMicrosecond.py ckks");
+//----------------------------------------------------------------------------------    
     auto start3 = std::chrono::high_resolution_clock::now();
+thread pythonThreadCkks(startPythonScript);
      seal_encrypt_ckks(data);
-    //std::cout << "Homomorphic encryption complete. Ciphertext size: " << seal_ciphertext_ckks.size() << std::endl;
-   // close_program("autoGainTimeExportVariableNameMicrosecond.py");
+running =false;
     auto end3 = std::chrono::high_resolution_clock::now();
+if (pythonThreadCkks.joinable()) {
+        pythonThreadCkks.join();
+    }
     std::chrono::duration<double> duration3 = end3 - start3;
     std::cout << "Tempo trascorso: " << duration3.count() << " secondi" << std::endl;
     // Confronto e Output
