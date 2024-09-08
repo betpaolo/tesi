@@ -5,19 +5,26 @@
 #include <chrono>
 #include "openssl/evp.h"
 #include <fstream>
-#include <cstdlib>  // Per la funzione system
+#include <cstdlib>  // per la funzione system
 #include "seal/seal.h"
 #include "seal/util/uintcore.h"
-//#include <unistd.h>  // Include per fork(), exec()
 #include <thread> 
 #include <iomanip>
+
+
 
 using namespace std;
 using namespace seal;
 
+//Inizializzazione variabili orario
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
+    std::tm* local_time = std::localtime(&now_c);
+    char buffer[100];
+   
+
 // Funzione per generare dati casuali
-
-
 std::vector<uint8_t> generate_random_data(size_t size) {
     std::vector<uint8_t> data(size);
     std::random_device rd;
@@ -26,7 +33,7 @@ std::vector<uint8_t> generate_random_data(size_t size) {
     std::generate(data.begin(), data.end(), [&](){ return dis(gen); });
     return data;
 }
-
+// -------------------------------ADAPTATION FUNCTIONS---------------------------------
 std::vector<double> convertToDouble(const std::vector<uint8_t> &input)
 {
     std::vector<double> result;
@@ -40,27 +47,6 @@ std::vector<double> convertToDouble(const std::vector<uint8_t> &input)
 
     return result;
 }
-
-
-// Funzione per crittografare con AES
-std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key, const std::vector<uint8_t>& iv) {
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    std::vector<uint8_t> ciphertext(plaintext.size() + EVP_MAX_BLOCK_LENGTH);
-    int len;
-    
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
-    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), plaintext.size());
-    int ciphertext_len = len;
-    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
-    ciphertext_len += len;
-    
-    EVP_CIPHER_CTX_free(ctx);
-    ciphertext.resize(ciphertext_len);
-    return ciphertext;
-}
-
-
-
 
 std::uint64_t vector_to_uint64(const std::vector<uint8_t>& plaintext) {
     std::uint64_t result = 0;
@@ -76,7 +62,28 @@ std::uint64_t vector_to_uint64(const std::vector<uint8_t>& plaintext) {
     return result;
 }
 
-// Funzione per crittografare con SEAL (BGV)
+
+//----------------------------CRYPTOGRAPHY FUNCTIONS----------------------------
+
+// AES Function
+std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key, const std::vector<uint8_t>& iv) {
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    std::vector<uint8_t> ciphertext(plaintext.size() + EVP_MAX_BLOCK_LENGTH);
+    int len;
+    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
+    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), plaintext.size());
+    int ciphertext_len = len;
+    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
+    ciphertext_len += len;
+    EVP_CIPHER_CTX_free(ctx);
+    ciphertext.resize(ciphertext_len);
+    std::cout<< "Fine encryption AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    return ciphertext;
+}
+
+
+
+// SEAL (BGV)
 
 void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
 
@@ -84,22 +91,26 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     size_t poly_modulus_degree = 4096;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    cout << "An example of invalid parameters" << endl;
-    parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 16));
+    //cout << "An example of invalid parameters" << endl;
+    //parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 16));
     SEALContext context(parms);
-    cout << "Parameter validation (failed): " << context.parameter_error_message() << endl;
+    //cout << "Parameter validation (failed): " << context.parameter_error_message() << endl;
     //print_parameters(context);
-    cout << endl;
+    //cout << endl;
     auto qualifiers = context.first_context_data()->qualifiers();
     cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
 
     KeyGenerator keygen(context);
+    std::cout<< "Inizio Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
     SecretKey secret_key = keygen.secret_key();
     PublicKey public_key;
     keygen.create_public_key(public_key);
      cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
     RelinKeys relin_keys;
     keygen.create_relin_keys(relin_keys);
+    std::cout<< "Fine Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
      cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
     Encryptor encryptor(context, public_key);
     Evaluator evaluator(context);
@@ -120,7 +131,6 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     cout << "Input plaintext matrix:" << endl;
    
     Plaintext plain_matrix;
-    //print_line(__LINE__);
     cout << "Encode plaintext matrix:" << endl;
     batch_encoder.encode(pod_matrix, plain_matrix);
 
@@ -128,12 +138,15 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
   
     cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
     encryptor.encrypt(plain_matrix, encrypted_matrix);
-  
+    std::cout<< "Fine Encryption" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
      stringstream data_stream;
      encrypted_matrix.save(data_stream);
+    std::cout<< "Fine serializzazione" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
 }
 
-
+// SEAL (CKKS)
 
 void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
   
@@ -146,7 +159,8 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
 
 
     SEALContext context(parms);
-  
+    std::cout<< "Inizio Generazione Chiavi CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
     KeyGenerator keygen(context);
     auto secret_key = keygen.secret_key();
     PublicKey public_key;
@@ -169,19 +183,19 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
    
     Plaintext plain;
     double scale = pow(2.0, 30); //Il parametro scale in CKKS è fondamentale per controllare la precisione e l'accuratezza delle operazioni aritmetiche sui dati cifrati. La scelta del valore di scale dipende dal tipo di operazioni previste, dalla precisione necessaria, e dal modulo coefficiente disponibile
-   // print_line(__LINE__);
+
     cout << "Encode input vector." << endl;
     encoder.encode(input, scale, plain);
 
-    /*
-    We can instantly decode to check the correctness of encoding.
-    */
+    
     vector<double> output;
 
 
     Ciphertext encrypted;
     cout << "Encrypt input vector, square, and relinearize." << endl;
     encryptor.encrypt(plain, encrypted);
+    std::cout<< "Fine crittografia CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+
  //FINE CRITTOGRAFIA
   
     evaluator.square_inplace(encrypted);
@@ -191,18 +205,15 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
     cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
          << endl;
 
-    //print_line(__LINE__);
+
     cout << "Decrypt and decode." << endl;
     decryptor.decrypt(encrypted, plain);
     encoder.decode(plain, output);
     cout << "    + Result vector ...... Correct." << endl;
-    //print_vector(output);
+  
 
     
 }
-
-
-
 
 
 std::atomic<bool> running(true); // Variabile per gestire l'esecuzione del processo
@@ -235,60 +246,47 @@ void startPythonScript() {
     }
 }
 
-// Funzione principale che incapsula il pacchetto
+
+
+
 void encapsulate_packet(size_t packet_size) {
-    // Ottieni l'ora corrente usando il clock di sistema ad alta risoluzione
-    auto now = std::chrono::system_clock::now();
+ std::strftime(buffer, sizeof(buffer), "%H:%M:%S", local_time);
 
-    // Converti l'ora corrente in un oggetto time_t
-    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-
-    // Ottieni i microsecondi dall'ora corrente
-    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
-
-    // Converti l'oggetto time_t in un formato leggibile
-    std::tm* local_time = std::localtime(&now_c);
-
-    // Usa std::strftime per formattare l'ora in modo compatibile
-    char buffer[100];
-    std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", local_time);
-
-
- 
-    // Generazione dati casuali
+// Generazione dati casuali
     std::vector<uint8_t> data = generate_random_data(packet_size);
-    // Avvia un nuovo thread per eseguire lo script Python
-
-    cout << buffer << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    cout << buffer << "Inizio AES" << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    
+    
+//----------------------------------------AES-----------------------------------------
+    // Avvio script misure AES - CHIAVI
     auto start= std::chrono::high_resolution_clock::now();
     std::thread pythonThread(startPythonScript);
-    
-//---------------------------------------------------------------------------------
     // Chiavi e IV per AES
     std::vector<uint8_t> key(32);  // AES-256
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
-    std::cout << std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    std::cout << " Fine Generazione chiavi AES " <<std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    //Inizio encryption AES
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl; 
-         // Imposta "running" su false per fermare il thread
+    // Stops the thread
     running = false;
-    auto end = std::chrono::high_resolution_clock::now(); 
     // Termina la misurazione del tempo
-     // Attendi che il thread termini in modo sicuro
+    auto end = std::chrono::high_resolution_clock::now(); 
+    // Safely ending the thread
     if (pythonThread.joinable()) {
         pythonThread.join();
     }
-    std::cout<<"fine AES" << std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    std::cout<<"fine AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     // Calcola la durata
 //-----------------------------------------------------------------------------------
     std::chrono::duration<double> duration = end - start;
     // Stampa il tempo trascorso
     std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
 
-std::cout << "crittografia omomorfica BGV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
-    // Crittografia Omomorfica (BGV)
+std::cout << "crittografia omomorfica BFV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    // Crittografia Omomorfica (BFV)
    auto start2 = std::chrono::high_resolution_clock::now();
    thread pythonThreadBFV(startPythonScript);   
  seal_encrypt_bfv(data);
