@@ -97,7 +97,7 @@ std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const st
 void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
 
     EncryptionParameters parms(scheme_type::bfv);
-    size_t poly_modulus_degree = 4096;
+    size_t poly_modulus_degree = 8192;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     //cout << "An example of invalid parameters" << endl;
@@ -106,8 +106,8 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     //cout << "Parameter validation (failed): " << context.parameter_error_message() << endl;
     //print_parameters(context);
     //cout << endl;
-    auto qualifiers = context.first_context_data()->qualifiers();
-    cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
+    //auto qualifiers = context.first_context_data()->qualifiers();
+    //cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
 
     KeyGenerator keygen(context);
    // std::cout<< "Inizio Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
