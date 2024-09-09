@@ -167,15 +167,14 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
    vector<double> input= convertToDouble(plaintext);
    EncryptionParameters parms(scheme_type::ckks);
 
-    size_t poly_modulus_degree = 4096;
+    size_t poly_modulus_degree = 8192;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40, 40, 40, 40, 40 }));
 
-
-    SEALContext context(parms);
-    //std::cout<< "Inizio Generazione Chiavi CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Inizio Generazione chiavi CKKS" << buffer << std::endl;   
+    SEALContext context(parms);
+
     KeyGenerator keygen(context);
     auto secret_key = keygen.secret_key();
     PublicKey public_key;
@@ -269,12 +268,11 @@ std::cout << "Timing " << buffer << std::endl;
 
 // Generazione dati casuali
     std::vector<uint8_t> data = generate_random_data(packet_size);
-  //  cout << buffer << "Inizio AES" << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
-    
+//----------------------------------------AES-----------------------------------------
+    // Avvio script misure AES - CHIAVI    
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing " << buffer << std::endl;
-//----------------------------------------AES-----------------------------------------
-    // Avvio script misure AES - CHIAVI
+
     auto start= std::chrono::high_resolution_clock::now();
     std::thread pythonThread(startPythonScript);
     // Chiavi e IV per AES
