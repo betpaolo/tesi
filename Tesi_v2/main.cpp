@@ -101,7 +101,10 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     //cout << "An example of invalid parameters" << endl;
-    //parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 16));
+    parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 20));
+    
+    
+    
     SEALContext context(parms);
     //cout << "Parameter validation (failed): " << context.parameter_error_message() << endl;
     //print_parameters(context);
