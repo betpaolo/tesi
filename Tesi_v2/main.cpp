@@ -16,12 +16,7 @@
 using namespace std;
 using namespace seal;
 
-//Inizializzazione variabili orario
-    auto now = std::chrono::system_clock::now();
-    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
-    std::tm* local_time = std::localtime(&now_c);
-    char buffer[100];
+
    
 
 // Funzione per generare dati casuali
@@ -77,7 +72,7 @@ std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const st
     ciphertext_len += len;
     EVP_CIPHER_CTX_free(ctx);
     ciphertext.resize(ciphertext_len);
-    std::cout<< "Fine encryption AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+  //  std::cout<< "Fine encryption AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     return ciphertext;
 }
 
@@ -101,7 +96,7 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
 
     KeyGenerator keygen(context);
-    std::cout<< "Inizio Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+   // std::cout<< "Inizio Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
     SecretKey secret_key = keygen.secret_key();
     PublicKey public_key;
@@ -109,7 +104,7 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
      cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
     RelinKeys relin_keys;
     keygen.create_relin_keys(relin_keys);
-    std::cout<< "Fine Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    //std::cout<< "Fine Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
      cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
     Encryptor encryptor(context, public_key);
@@ -138,11 +133,11 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
   
     cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
     encryptor.encrypt(plain_matrix, encrypted_matrix);
-    std::cout<< "Fine Encryption" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+   // std::cout<< "Fine Encryption" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
      stringstream data_stream;
      encrypted_matrix.save(data_stream);
-    std::cout<< "Fine serializzazione" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    //std::cout<< "Fine serializzazione" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
 }
 
@@ -159,7 +154,7 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
 
 
     SEALContext context(parms);
-    std::cout<< "Inizio Generazione Chiavi CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    //std::cout<< "Inizio Generazione Chiavi CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
     KeyGenerator keygen(context);
     auto secret_key = keygen.secret_key();
@@ -194,7 +189,7 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
     Ciphertext encrypted;
     cout << "Encrypt input vector, square, and relinearize." << endl;
     encryptor.encrypt(plain, encrypted);
-    std::cout<< "Fine crittografia CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+   // std::cout<< "Fine crittografia CKKS" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
 
  //FINE CRITTOGRAFIA
   
@@ -245,16 +240,30 @@ void startPythonScript() {
         std::system(killCommand.c_str());
     }
 }
-
-
+char buffer[100];
+// Funzione per aggiornare il buffer con l'ora corrente
+void updateTime(char* buffer, std::size_t bufferSize) {
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
+    std::tm* local_time = std::localtime(&now_c);
+    
+    // Formatta l'ora corrente nel buffer
+    std::strftime(buffer, bufferSize, "%H:%M:%S", local_time);
+    
+    // Aggiungi i microsecondi al buffer
+    snprintf(buffer + std::strlen(buffer), bufferSize - std::strlen(buffer), ".%06ld", microseconds.count());
+}
 
 
 void encapsulate_packet(size_t packet_size) {
- std::strftime(buffer, sizeof(buffer), "%H:%M:%S", local_time);
+
+updateTime(buffer, sizeof(buffer));
+std::cout << "Timing " << buffer << std::endl;
 
 // Generazione dati casuali
     std::vector<uint8_t> data = generate_random_data(packet_size);
-    cout << buffer << "Inizio AES" << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+  //  cout << buffer << "Inizio AES" << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     
     
 //----------------------------------------AES-----------------------------------------
@@ -266,7 +275,8 @@ void encapsulate_packet(size_t packet_size) {
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
-    std::cout << " Fine Generazione chiavi AES " <<std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+   
+    //std::cout << " Fine Generazione chiavi AES " <<std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     //Inizio encryption AES
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl; 
@@ -278,14 +288,14 @@ void encapsulate_packet(size_t packet_size) {
     if (pythonThread.joinable()) {
         pythonThread.join();
     }
-    std::cout<<"fine AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+   // std::cout<<"fine AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     // Calcola la durata
 //-----------------------------------------------------------------------------------
     std::chrono::duration<double> duration = end - start;
     // Stampa il tempo trascorso
     std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
 
-std::cout << "crittografia omomorfica BFV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+//std::cout << "crittografia omomorfica BFV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     // Crittografia Omomorfica (BFV)
    auto start2 = std::chrono::high_resolution_clock::now();
    thread pythonThreadBFV(startPythonScript);   
@@ -297,7 +307,8 @@ auto end2 = std::chrono::high_resolution_clock::now();
 if (pythonThreadBFV.joinable()) {
         pythonThreadBFV.join();
     }
-std::cout << "fine crittografia BGV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
+    //std::strftime(buffer, sizeof(buffer), "%H:%M:%S", local_time);
+//std::cout << "fine crittografia BGV"<<std::put_time(local_time, "%Y-%m-%d %H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     std::chrono::duration<double> duration2 = end2 - start2;
     std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
 running = true;
