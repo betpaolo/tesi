@@ -265,7 +265,8 @@ std::cout << "Timing " << buffer << std::endl;
     std::vector<uint8_t> data = generate_random_data(packet_size);
   //  cout << buffer << "Inizio AES" << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     
-    
+    updateTime(buffer, sizeof(buffer));
+std::cout << "Timing " << buffer << std::endl;
 //----------------------------------------AES-----------------------------------------
     // Avvio script misure AES - CHIAVI
     auto start= std::chrono::high_resolution_clock::now();
