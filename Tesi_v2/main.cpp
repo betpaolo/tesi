@@ -17,7 +17,6 @@ using namespace std;
 using namespace seal;
 
 
-   
 
 // Funzione per generare dati casuali
 std::vector<uint8_t> generate_random_data(size_t size) {
@@ -86,7 +85,6 @@ std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const st
     ciphertext_len += len;
     EVP_CIPHER_CTX_free(ctx);
     ciphertext.resize(ciphertext_len);
-  //  std::cout<< "Fine encryption AES" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     return ciphertext;
 }
 
@@ -100,20 +98,11 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     size_t poly_modulus_degree = 8192;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    //cout << "An example of invalid parameters" << endl;
     parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 20));
     
-    
-    
     SEALContext context(parms);
-    //cout << "Parameter validation (failed): " << context.parameter_error_message() << endl;
-    //print_parameters(context);
-    //cout << endl;
-    //auto qualifiers = context.first_context_data()->qualifiers();
-    //cout << "Batching enabled: " << boolalpha << qualifiers.using_batching << endl;
-
+   
     KeyGenerator keygen(context);
-   // std::cout<< "Inizio Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Inizio Generazione Chiavi BFV" << buffer << std::endl;
     SecretKey secret_key = keygen.secret_key();
@@ -122,7 +111,6 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
      cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
     RelinKeys relin_keys;
     keygen.create_relin_keys(relin_keys);
-    //std::cout<< "Fine Generazione Chiavi BFV" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Fine Generazione Chiavi BFV" << buffer << std::endl;
      cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
@@ -152,15 +140,15 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
   
     cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
     encryptor.encrypt(plain_matrix, encrypted_matrix);
-   // std::cout<< "Fine Encryption" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine encryption" << buffer << std::endl;
 
      stringstream data_stream;
      encrypted_matrix.save(data_stream);
-    //std::cout<< "Fine serializzazione" << std::put_time(local_time, "%H:%M:%S") << '.' << std::setw(6) << std::setfill('0') << microseconds.count() << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine serializzazione" << buffer << std::endl;
+    size_t ciphertext_size_bytes = encrypted_matrix.size() * poly_modulus_degree * parms.coeff_modulus().size() * sizeof(uint64_t);
+    std:cout<<"Dimensione chipertext"<<ciphertext_size_bytes<<endl;
 }
 
 // SEAL (CKKS)
