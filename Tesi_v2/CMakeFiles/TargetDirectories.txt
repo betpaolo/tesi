@@ -1,3 +1,3 @@
-/home/paolo/tesi/Tesi_v2/CMakeFiles/HEPowerConsumption.dir
-/home/paolo/tesi/Tesi_v2/CMakeFiles/edit_cache.dir
-/home/paolo/tesi/Tesi_v2/CMakeFiles/rebuild_cache.dir
+/home/paolo/dirTesi/tesi/Tesi_v2/CMakeFiles/HEPowerConsumption.dir
+/home/paolo/dirTesi/tesi/Tesi_v2/CMakeFiles/edit_cache.dir
+/home/paolo/dirTesi/tesi/Tesi_v2/CMakeFiles/rebuild_cache.dir
