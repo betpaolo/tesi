@@ -335,7 +335,7 @@ std::cout << "Timing " << buffer << std::endl;
     std::cout << "Timing " << buffer << std::endl;
 
     auto start= std::chrono::high_resolution_clock::now();
-    std::thread pythonThread(startPythonScript);
+    //std::thread pythonThread(startPythonScript);
     // Chiavi e IV per AES
     std::vector<uint8_t> key(32);  // AES-256
     std::vector<uint8_t> iv(16);   // IV
@@ -347,13 +347,13 @@ std::cout << "Timing " << buffer << std::endl;
     std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
     std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl; 
     // Stops the thread
-    running = false;
+    //running = false;
     // Termina la misurazione del tempo
     auto end = std::chrono::high_resolution_clock::now(); 
     // Safely ending the thread
-    if (pythonThread.joinable()) {
-        pythonThread.join();
-    }
+  //  if (pythonThread.joinable()) {
+  //      pythonThread.join();
+  //  }
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine AES" << buffer << std::endl;
   
@@ -362,34 +362,34 @@ std::cout << "Timing " << buffer << std::endl;
     std::chrono::duration<double> duration = end - start;
     // Stampa il tempo trascorso
     std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
-updateTime(buffer, sizeof(buffer));
+    updateTime(buffer, sizeof(buffer));
     std::cout << "Timing crittografia omomorfica BFV" << buffer << std::endl;
     // Crittografia Omomorfica (BFV)
    auto start2 = std::chrono::high_resolution_clock::now();
-   thread pythonThreadBFV(startPythonScript);   
+  // thread pythonThreadBFV(startPythonScript);   
 // seal_encrypt_bfv(data);
     
     
-running = false;    
+//running = false;    
 auto end2 = std::chrono::high_resolution_clock::now();
-if (pythonThreadBFV.joinable()) {
-        pythonThreadBFV.join();
-    }
+//if (pythonThreadBFV.joinable()) {
+   //     pythonThreadBFV.join();
+   // }
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine crittografia BFV" << buffer << std::endl;
     std::chrono::duration<double> duration2 = end2 - start2;
     std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
-running = true;
+//running = true;
 
 //----------------------------------------------------------------------------------    
     auto start3 = std::chrono::high_resolution_clock::now();
-thread pythonThreadCkks(startPythonScript);
+//thread pythonThreadCkks(startPythonScript);
      seal_encrypt_ckks(data, false);
-running =false;
+//running =false;
     auto end3 = std::chrono::high_resolution_clock::now();
-if (pythonThreadCkks.joinable()) {
-        pythonThreadCkks.join();
-    }
+//if (pythonThreadCkks.joinable()) {
+ //       pythonThreadCkks.join();
+  //  }
     std::chrono::duration<double> duration3 = end3 - start3;
     std::cout << "Tempo trascorso CKKS: " << duration3.count() << " secondi" << std::endl;
     // Confronto e Output
