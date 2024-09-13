@@ -252,16 +252,16 @@ void seal_encrypt_ckks_batching(const std::vector<uint8_t>& plaintext) {
 
     CKKSEncoder encoder(context);
 
-    size_t slot_count = encoder.slot_count();
-    cout << "Number of slots: " << slot_count << endl;
+  //  size_t slot_count = encoder.slot_count();
+//    cout << "Number of slots: " << slot_count << endl;
 
     
-    cout << "Input vector: " << endl;
-   
+   // cout << "Input vector: " << endl;
+   for (int i=0; i<=10; i++){
     Plaintext plain;
     double scale = pow(2.0, 30); //Il parametro scale in CKKS è fondamentale per controllare la precisione e l'accuratezza delle operazioni aritmetiche sui dati cifrati. La scelta del valore di scale dipende dal tipo di operazioni previste, dalla precisione necessaria, e dal modulo coefficiente disponibile
 
-    cout << "Encode input vector." << endl;
+   // cout << "Encode input vector." << endl;
     encoder.encode(input, scale, plain);
 
     
@@ -275,20 +275,20 @@ void seal_encrypt_ckks_batching(const std::vector<uint8_t>& plaintext) {
     std::cout << "Timing Fine Crittografia CKKS" << buffer << std::endl;
  //FINE CRITTOGRAFIA
   
-    evaluator.square_inplace(encrypted);
-    evaluator.relinearize_inplace(encrypted, relin_keys);
+   // evaluator.square_inplace(encrypted);
+    //evaluator.relinearize_inplace(encrypted, relin_keys);
 
   
-    cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
-         << endl;
+   // cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
+   //      << endl;
 
 
-    cout << "Decrypt and decode." << endl;
-    decryptor.decrypt(encrypted, plain);
-    encoder.decode(plain, output);
-    cout << "    + Result vector ...... Correct." << endl;
+ //   cout << "Decrypt and decode." << endl;
+ //   decryptor.decrypt(encrypted, plain);
+ //   encoder.decode(plain, output);
+ //   cout << "    + Result vector ...... Correct." << endl;
   
-
+   }
     
 }
 std::atomic<bool> running(true); // Variabile per gestire l'esecuzione del processo
