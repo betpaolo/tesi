@@ -103,16 +103,23 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     SEALContext context(parms);
    
     KeyGenerator keygen(context);
+    cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Inizio Generazione Chiavi BFV" << buffer << std::endl;
     SecretKey secret_key = keygen.secret_key();
+    cout<< "-----------------------------------------------------------" <<endl;
+
     PublicKey public_key;
     keygen.create_public_key(public_key);
      cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
     RelinKeys relin_keys;
     keygen.create_relin_keys(relin_keys);
     updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+
     std::cout << "Fine Generazione Chiavi BFV" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+
      cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
     Encryptor encryptor(context, public_key);
     Evaluator evaluator(context);
@@ -141,7 +148,10 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
     cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
     encryptor.encrypt(plain_matrix, encrypted_matrix);
     updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+
     std::cout << "Timing Fine encryption" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
 
     stringstream data_stream;
     encrypted_matrix.save(data_stream);
@@ -153,7 +163,7 @@ void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
 
 // SEAL (CKKS)
 
-void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext, bool keys) {
+void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
   
    vector<double> input= convertToDouble(plaintext);
    EncryptionParameters parms(scheme_type::ckks);
@@ -161,9 +171,10 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext, bool keys) {
     size_t poly_modulus_degree = 8192;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40,40, 40, 40, 40 }));
-
+    cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Inizio Generazione chiavi CKKS" << buffer << std::endl;   
+    std::cout << "Timing Inizio Generazione chiavi CKKS" << buffer << std::endl; 
+    std:cout<< "-----------------------------------------------------------"<<endl;  
     SEALContext context(parms);
 
     KeyGenerator keygen(context);
@@ -172,10 +183,10 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext, bool keys) {
     keygen.create_public_key(public_key);
     RelinKeys relin_keys;
     keygen.create_relin_keys(relin_keys);
-
+cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine Generazione chiavi CKKS" << buffer << std::endl;  
-
+cout<< "-----------------------------------------------------------"<<endl;
     Encryptor encryptor(context, public_key);
     Evaluator evaluator(context);
     Decryptor decryptor(context, secret_key);
@@ -201,8 +212,10 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext, bool keys) {
     Ciphertext encrypted;
     cout << "Encrypt input vector, square, and relinearize." << endl;
     encryptor.encrypt(plain, encrypted);
+    cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing Fine Crittografia CKKS" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
  //FINE CRITTOGRAFIA
   
     evaluator.square_inplace(encrypted);
@@ -222,57 +235,6 @@ void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext, bool keys) {
     
 }
 
-
-// SEAL (CKKS)
-
-void seal_encrypt_ckks_batching(const std::vector<uint8_t>& plaintext) {
-  
-   vector<double> input= convertToDouble(plaintext);
-   EncryptionParameters parms(scheme_type::ckks);
-
-    size_t poly_modulus_degree = 8192;
-    parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40, 40, 40, 40, 40 }));
-
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Inizio Generazione chiavi CKKS" << buffer << std::endl;   
-    SEALContext context(parms);
-
-    KeyGenerator keygen(context);
-    auto secret_key = keygen.secret_key();
-    PublicKey public_key;
-    keygen.create_public_key(public_key);
-    RelinKeys relin_keys;
-    keygen.create_relin_keys(relin_keys);
-
-    
-    Encryptor encryptor(context, public_key);
-    Evaluator evaluator(context);
-    Decryptor decryptor(context, secret_key);
-
-    CKKSEncoder encoder(context);
-
-  //  size_t slot_count = encoder.slot_count();
-//    cout << "Number of slots: " << slot_count << endl;
-
-    
-   // cout << "Input vector: " << endl;
-   for (int i=0; i<=10; i++){
-    Plaintext plain;
-    double scale = pow(2.0, 30); //Il parametro scale in CKKS è fondamentale per controllare la precisione e l'accuratezza delle operazioni aritmetiche sui dati cifrati. La scelta del valore di scale dipende dal tipo di operazioni previste, dalla precisione necessaria, e dal modulo coefficiente disponibile
-
-   // cout << "Encode input vector." << endl;
-    encoder.encode(input, scale, plain);
-
-    
-    vector<double> output;
-
-
-    Ciphertext encrypted;
-    cout << "Encrypt input vector, square, and relinearize." << endl;
-    encryptor.encrypt(plain, encrypted);
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine Crittografia CKKS" << buffer << std::endl;
  //FINE CRITTOGRAFIA
   
    // evaluator.square_inplace(encrypted);
@@ -288,9 +250,8 @@ void seal_encrypt_ckks_batching(const std::vector<uint8_t>& plaintext) {
  //   encoder.decode(plain, output);
  //   cout << "    + Result vector ...... Correct." << endl;
   
-   }
-    
-}
+   
+
 std::atomic<bool> running(true); // Variabile per gestire l'esecuzione del processo
 pid_t pythonPid = -1;  // Variabile per il PID del processo Python
 
@@ -323,10 +284,10 @@ void startPythonScript() {
 
 
 void encapsulate_packet(size_t packet_size) {
-
+cout<< "-----------------------------------------------------------"<<endl;
 updateTime(buffer, sizeof(buffer));
 std::cout << "Timing " << buffer << std::endl;
-
+cout<< "-----------------------------------------------------------"<<endl;
 // Generazione dati casuali
     std::vector<uint8_t> data = generate_random_data(packet_size);
 //----------------------------------------AES-----------------------------------------
@@ -384,7 +345,7 @@ auto end2 = std::chrono::high_resolution_clock::now();
 //----------------------------------------------------------------------------------    
     auto start3 = std::chrono::high_resolution_clock::now();
 //thread pythonThreadCkks(startPythonScript);
-     seal_encrypt_ckks(data, false);
+     seal_encrypt_ckks(data);
 //running =false;
     auto end3 = std::chrono::high_resolution_clock::now();
 //if (pythonThreadCkks.joinable()) {
