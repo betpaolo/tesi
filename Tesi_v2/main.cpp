@@ -1,60 +1,15 @@
-#include <stdio.h>
-#include <iostream>
-#include <vector>
-#include <random>
-#include <chrono>
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT license.
+#include "examples.h"
 #include "openssl/evp.h"
-#include <fstream>
-#include <cstdlib>  // per la funzione system
-#include "seal/seal.h"
-#include "seal/util/uintcore.h"
-#include <thread> 
-#include <iomanip>
 
+#define SENDING
 
 
 using namespace std;
 using namespace seal;
 
 
-
-// Funzione per generare dati casuali
-std::vector<uint8_t> generate_random_data(size_t size) {
-    std::vector<uint8_t> data(size);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<uint8_t> dis(0, 255);
-    std::generate(data.begin(), data.end(), [&](){ return dis(gen); });
-    return data;
-}
-// -------------------------------ADAPTATION FUNCTIONS---------------------------------
-std::vector<double> convertToDouble(const std::vector<uint8_t> &input)
-{
-    std::vector<double> result;
-    result.reserve(input.size());  // Alloca spazio per evitare riallocazioni durante l'inserimento
-
-    // Converte ogni elemento del vector uint8_t in double e lo aggiunge a result
-    for (auto byte : input)
-    {
-        result.push_back(static_cast<double>(byte));
-    }
-
-    return result;
-}
-
-std::uint64_t vector_to_uint64(const std::vector<uint8_t>& plaintext) {
-    std::uint64_t result = 0;
-
-    // Assicurati che il numero di byte non superi 8, poiché uint64_t è di 8 byte.
-    std::size_t size = std::min(plaintext.size(), static_cast<std::size_t>(8));
-
-    // Combina i byte nel uint64_t, dal byte più significativo al meno significativo.
-    for (std::size_t i = 0; i < size; ++i) {
-        result |= static_cast<std::uint64_t>(plaintext[i]) << (8 * i);
-    }
-
-    return result;
-}
 
 char buffer[100];
 // Funzione per aggiornare il buffer con l'ora corrente
@@ -71,295 +26,470 @@ void updateTime(char* buffer, std::size_t bufferSize) {
     snprintf(buffer + std::strlen(buffer), bufferSize - std::strlen(buffer), ".%06ld", microseconds.count());
 }
 
-//----------------------------CRYPTOGRAPHY FUNCTIONS----------------------------
-
-// AES Function
-std::vector<uint8_t> aes_encrypt(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key, const std::vector<uint8_t>& iv) {
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    std::vector<uint8_t> ciphertext(plaintext.size() + EVP_MAX_BLOCK_LENGTH);
-    int len;
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
-    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, plaintext.data(), plaintext.size());
-    int ciphertext_len = len;
-    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
-    ciphertext_len += len;
-    EVP_CIPHER_CTX_free(ctx);
-    ciphertext.resize(ciphertext_len);
-    return ciphertext;
-}
 
 
+static std::vector<uint8_t> packet;
+std::vector<double> data_double;
 
-// SEAL (BGV)
+void ckks_performance_test(SEALContext context)
+{
+    chrono::high_resolution_clock::time_point time_start, time_end;
 
-void seal_encrypt_bfv(const std::vector<uint8_t>& plaintext) {
+    print_parameters(context);
+    cout << endl;
 
-    EncryptionParameters parms(scheme_type::bfv);
-    size_t poly_modulus_degree = 4096;
-    parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    parms.set_plain_modulus(PlainModulus::Batching(poly_modulus_degree, 20));
-    
-    SEALContext context(parms);
-   
+    auto &parms = context.first_context_data()->parms();
+    size_t poly_modulus_degree = parms.poly_modulus_degree();
+    cout<< "-----------------------------------------------------------"<<endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing inizio generazione chiavi CKKS " << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    cout << "Generating secret/public keys: ";
     KeyGenerator keygen(context);
-    cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Inizio Generazione Chiavi BFV" << buffer << std::endl;
-    SecretKey secret_key = keygen.secret_key();
-    cout<< "-----------------------------------------------------------" <<endl;
+    cout << "Done" << endl;
 
-    PublicKey public_key;
-    keygen.create_public_key(public_key);
-     cout << "Dimensione chiave pubblica " << public_key.data().size() << endl;
-    RelinKeys relin_keys;
-    keygen.create_relin_keys(relin_keys);
-    updateTime(buffer, sizeof(buffer));
-    cout<< "-----------------------------------------------------------"<<endl;
-
-    std::cout << "Fine Generazione Chiavi BFV" << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
-
-     cout << "Dimensione chiave Relin " << relin_keys.data().size() << endl;
-    Encryptor encryptor(context, public_key);
-    Evaluator evaluator(context);
-    Decryptor decryptor(context, secret_key);
-
-    BatchEncoder batch_encoder(context);
-
-    size_t slot_count = batch_encoder.slot_count();
-    size_t row_size = slot_count / 2;
-    cout << "Plaintext matrix row size: " << row_size << endl;
-
-    vector<uint64_t> pod_matrix(slot_count, 0ULL);
-    // Conversione dei 20 byte in uint64_t per il batch encoder
-    for (size_t i = 0; i < plaintext.size(); i++) {
-        pod_matrix[i] = static_cast<uint64_t>(plaintext[i]);
-    }
-   
-    cout << "Input plaintext matrix:" << endl;
-   
-    Plaintext plain_matrix;
-    cout << "Encode plaintext matrix:" << endl;
-    batch_encoder.encode(pod_matrix, plain_matrix);
-
-    Ciphertext encrypted_matrix;
-  
-    cout << "Encrypt plain_matrix to encrypted_matrix." << endl;
-    encryptor.encrypt(plain_matrix, encrypted_matrix);
-    updateTime(buffer, sizeof(buffer));
-    cout<< "-----------------------------------------------------------"<<endl;
-
-    std::cout << "Timing Fine encryption" << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
-
-    stringstream data_stream;
-    encrypted_matrix.save(data_stream);
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine serializzazione" << buffer << std::endl;
-    size_t ciphertext_size_bytes = encrypted_matrix.size() * poly_modulus_degree * parms.coeff_modulus().size() * sizeof(uint64_t);
-    std:cout<<"Dimensione chipertext"<<ciphertext_size_bytes<<endl;
-}
-
-// SEAL (CKKS)
-
-void seal_encrypt_ckks(const std::vector<uint8_t>& plaintext) {
-  
-   vector<double> input= convertToDouble(plaintext);
-   EncryptionParameters parms(scheme_type::ckks);
-
-    size_t poly_modulus_degree = 8192;
-    parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, { 40,40, 40, 40, 40 }));
-    cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Inizio Generazione chiavi CKKS" << buffer << std::endl; 
-    std:cout<< "-----------------------------------------------------------"<<endl;  
-    SEALContext context(parms);
-
-    KeyGenerator keygen(context);
     auto secret_key = keygen.secret_key();
     PublicKey public_key;
     keygen.create_public_key(public_key);
+    cout<< "-----------------------------------------------------------"<<endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing fine generazioni chiavi CKKS " << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     RelinKeys relin_keys;
-    keygen.create_relin_keys(relin_keys);
-cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine Generazione chiavi CKKS" << buffer << std::endl;  
-cout<< "-----------------------------------------------------------"<<endl;
+    GaloisKeys gal_keys;
+    chrono::microseconds time_diff;
+    if (context.using_keyswitching())
+    {
+        cout << "Generating relinearization keys: ";
+        time_start = chrono::high_resolution_clock::now();
+        keygen.create_relin_keys(relin_keys);
+        time_end = chrono::high_resolution_clock::now();
+        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
+
+        if (!context.first_context_data()->qualifiers().using_batching)
+        {
+            cout << "Given encryption parameters do not support batching." << endl;
+            return;
+        }
+
+        cout << "Generating Galois keys: ";
+        time_start = chrono::high_resolution_clock::now();
+        keygen.create_galois_keys(gal_keys);
+        time_end = chrono::high_resolution_clock::now();
+        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
+    }
+
     Encryptor encryptor(context, public_key);
-    Evaluator evaluator(context);
     Decryptor decryptor(context, secret_key);
+    Evaluator evaluator(context);
+    CKKSEncoder ckks_encoder(context);
 
-    CKKSEncoder encoder(context);
+    chrono::microseconds time_encode_sum(0);
+    chrono::microseconds time_decode_sum(0);
+    chrono::microseconds time_encrypt_sum(0);
+    chrono::microseconds time_decrypt_sum(0);
+    chrono::microseconds time_add_sum(0);
+    chrono::microseconds time_multiply_sum(0);
+    chrono::microseconds time_multiply_plain_sum(0);
+    chrono::microseconds time_square_sum(0);
+    chrono::microseconds time_relinearize_sum(0);
+    chrono::microseconds time_rescale_sum(0);
+    chrono::microseconds time_rotate_one_step_sum(0);
+    chrono::microseconds time_rotate_random_sum(0);
+    chrono::microseconds time_conjugate_sum(0);
+    chrono::microseconds time_serialize_sum(0);
+#ifdef SEAL_USE_ZLIB
+    chrono::microseconds time_serialize_zlib_sum(0);
+#endif
+#ifdef SEAL_USE_ZSTD
+    chrono::microseconds time_serialize_zstd_sum(0);
+#endif
+    /*
+    How many times to run the test?
+    */
+    long long count = 10;
 
-    size_t slot_count = encoder.slot_count();
-    cout << "Number of slots: " << slot_count << endl;
-
-    
-    cout << "Input vector: " << endl;
-   
-    Plaintext plain;
-    double scale = pow(2.0, 30); //Il parametro scale in CKKS è fondamentale per controllare la precisione e l'accuratezza delle operazioni aritmetiche sui dati cifrati. La scelta del valore di scale dipende dal tipo di operazioni previste, dalla precisione necessaria, e dal modulo coefficiente disponibile
-
-    cout << "Encode input vector." << endl;
-    encoder.encode(input, scale, plain);
-
-    
-    vector<double> output;
-
-
-    Ciphertext encrypted;
-    cout << "Encrypt input vector, square, and relinearize." << endl;
-    encryptor.encrypt(plain, encrypted);
-    cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine Crittografia CKKS" << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
- //FINE CRITTOGRAFIA
+    /*
+    Populate a vector of floating-point values to batch.
+    */
   
-    evaluator.square_inplace(encrypted);
-    evaluator.relinearize_inplace(encrypted, relin_keys);
+    random_device rd;
+    cout << "Running tests ";
+    for (long long i = 0; i < count; i++)
+    {
+        /*
+        [Encoding]
+        For scale we use the square root of the last coeff_modulus prime
+        from parms.
+        */
+        #ifdef SENDING
+        Plaintext plain(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0);
+        /*
 
-  
-    cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
-         << endl;
+        */
+        double scale = sqrt(static_cast<double>(parms.coeff_modulus().back().value()));
+        time_start = chrono::high_resolution_clock::now();
+        ckks_encoder.encode(data_double, scale, plain);
+        time_end = chrono::high_resolution_clock::now();
+        time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        #endif
+        /*
+        [Decoding]
+        */
+       #ifdef RECEIVING
+        vector<double> pod_vector2(ckks_encoder.slot_count());
+        time_start = chrono::high_resolution_clock::now();
+        ckks_encoder.decode(plain, pod_vector2);
+        time_end = chrono::high_resolution_clock::now();
+        time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        #endif
+        /*
+        [Encryption]
+        */
+        Ciphertext encrypted(context);
+        time_start = chrono::high_resolution_clock::now();
+        encryptor.encrypt(plain, encrypted);
+        time_end = chrono::high_resolution_clock::now();
+        time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
+        /*
+        [Decryption]
+        */
+        #ifdef RECEIVING
+        Plaintext plain2(poly_modulus_degree, 0);
+        time_start = chrono::high_resolution_clock::now();
+        decryptor.decrypt(encrypted, plain2);
+        time_end = chrono::high_resolution_clock::now();
+        time_decrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        #endif
+        /*
+        [Add]
+        */
+       #ifdef OPERATION
+        Ciphertext encrypted1(context);
+        ckks_encoder.encode(i + 1, plain);
+        encryptor.encrypt(plain, encrypted1);
+        Ciphertext encrypted2(context);
+        ckks_encoder.encode(i + 1, plain2);
+        encryptor.encrypt(plain2, encrypted2);
+        time_start = chrono::high_resolution_clock::now();
+        evaluator.add_inplace(encrypted1, encrypted1);
+        evaluator.add_inplace(encrypted2, encrypted2);
+        evaluator.add_inplace(encrypted1, encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_add_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        
+        /*
+        [Multiply]
+        */
+        encrypted1.reserve(3);
+        time_start = chrono::high_resolution_clock::now();
+        evaluator.multiply_inplace(encrypted1, encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
-    cout << "Decrypt and decode." << endl;
-    decryptor.decrypt(encrypted, plain);
-    encoder.decode(plain, output);
-    cout << "    + Result vector ...... Correct." << endl;
-  
+        /*
+        [Multiply Plain]
+        */
+        time_start = chrono::high_resolution_clock::now();
+        evaluator.multiply_plain_inplace(encrypted2, plain);
+        time_end = chrono::high_resolution_clock::now();
+        time_multiply_plain_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
-    
+        /*
+        [Square]
+        */
+        time_start = chrono::high_resolution_clock::now();
+        evaluator.square_inplace(encrypted2);
+        time_end = chrono::high_resolution_clock::now();
+        time_square_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        
+        if (context.using_keyswitching())
+        {
+            /*
+            [Relinearize]
+            */
+            time_start = chrono::high_resolution_clock::now();
+            evaluator.relinearize_inplace(encrypted1, relin_keys);
+            time_end = chrono::high_resolution_clock::now();
+            time_relinearize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+            /*
+            [Rescale]
+            */
+            time_start = chrono::high_resolution_clock::now();
+            evaluator.rescale_to_next_inplace(encrypted1);
+            time_end = chrono::high_resolution_clock::now();
+            time_rescale_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+            /*
+            [Rotate Vector]
+            */
+            time_start = chrono::high_resolution_clock::now();
+            evaluator.rotate_vector_inplace(encrypted, 1, gal_keys);
+            evaluator.rotate_vector_inplace(encrypted, -1, gal_keys);
+            time_end = chrono::high_resolution_clock::now();
+            time_rotate_one_step_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+            /*
+            [Rotate Vector Random]
+            */
+            // ckks_encoder.slot_count() is always a power of 2.
+            int random_rotation = static_cast<int>(rd() & (ckks_encoder.slot_count() - 1));
+            time_start = chrono::high_resolution_clock::now();
+            evaluator.rotate_vector_inplace(encrypted, random_rotation, gal_keys);
+            time_end = chrono::high_resolution_clock::now();
+            time_rotate_random_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+            /*
+            [Complex Conjugate]
+            */
+            time_start = chrono::high_resolution_clock::now();
+            evaluator.complex_conjugate_inplace(encrypted, gal_keys);
+            time_end = chrono::high_resolution_clock::now();
+            time_conjugate_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        }
+        #endif
+        /*
+        [Serialize Ciphertext]
+        */
+        size_t buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::none));
+        vector<seal_byte> buf(buf_size);
+        cout<<"Chipertext Size: "<<buf_size<<endl;
+        time_start = chrono::high_resolution_clock::now();
+       // cout<<"OOOOOO"<<time_start<<endl;
+        encrypted.save(buf.data(), buf_size, compr_mode_type::none);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+       
+#ifdef SEAL_USE_ZLIB
+        /*
+        [Serialize Ciphertext (ZLIB)]
+        */
+        buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
+        buf.resize(buf_size);
+        cout<<"Chipertext Size with ZLIB: "<<buf_size<<endl;
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_size, compr_mode_type::zlib);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
+#ifdef SEAL_USE_ZSTD
+        /*
+        [Serialize Ciphertext (Zstandard)]
+        */
+        buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
+        buf.resize(buf_size);
+        cout<<"Chipertext Size with ZSTD: "<<buf_size<<endl;
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_size, compr_mode_type::zstd);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
+        /*
+        Print a dot to indicate progress.
+        */
+        //cout << ".";
+        cout.flush();
+    }
+
+    cout << " Done" << endl << endl;
+    cout.flush();
+
+    auto avg_encode = time_encode_sum.count() / count;
+    auto avg_decode = time_decode_sum.count() / count;
+    auto avg_encrypt = time_encrypt_sum.count() / count;
+    auto avg_decrypt = time_decrypt_sum.count() / count;
+    auto avg_add = time_add_sum.count() / (3 * count);
+    auto avg_multiply = time_multiply_sum.count() / count;
+    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
+    auto avg_square = time_square_sum.count() / count;
+    auto avg_relinearize = time_relinearize_sum.count() / count;
+    auto avg_rescale = time_rescale_sum.count() / count;
+    auto avg_rotate_one_step = time_rotate_one_step_sum.count() / (2 * count);
+    auto avg_rotate_random = time_rotate_random_sum.count() / count;
+    auto avg_conjugate = time_conjugate_sum.count() / count;
+    auto avg_serialize = time_serialize_sum.count() / count;
+#ifdef SEAL_USE_ZLIB
+    auto avg_serialize_zlib = time_serialize_zlib_sum.count() / count;
+#endif
+#ifdef SEAL_USE_ZSTD
+    auto avg_serialize_zstd = time_serialize_zstd_sum.count() / count;
+#endif
+    cout << "Average encode: " << avg_encode << " microseconds" << endl;
+    cout << "Average decode: " << avg_decode << " microseconds" << endl;
+    cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
+    cout << "Average decrypt: " << avg_decrypt << " microseconds" << endl;
+    cout << "Average add: " << avg_add << " microseconds" << endl;
+    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
+    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
+    cout << "Average square: " << avg_square << " microseconds" << endl;
+    if (context.using_keyswitching())
+    {
+        cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
+        cout << "Average rescale: " << avg_rescale << " microseconds" << endl;
+        cout << "Average rotate vector one step: " << avg_rotate_one_step << " microseconds" << endl;
+        cout << "Average rotate vector random: " << avg_rotate_random << " microseconds" << endl;
+        cout << "Average complex conjugate: " << avg_conjugate << " microseconds" << endl;
+    }
+    cout << "Average serialize ciphertext: " << avg_serialize << " microseconds" << endl;
+#ifdef SEAL_USE_ZLIB
+    cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
+#endif
+#ifdef SEAL_USE_ZSTD
+    cout << "Average compressed (Zstandard) serialize ciphertext: " << avg_serialize_zstd << " microseconds" << endl;
+#endif
+    cout.flush();
 }
 
- //FINE CRITTOGRAFIA
-  
-   // evaluator.square_inplace(encrypted);
-    //evaluator.relinearize_inplace(encrypted, relin_keys);
-
-  
-   // cout << "    + Scale in squared input: " << encrypted.scale() << " (" << log2(encrypted.scale()) << " bits)"
-   //      << endl;
-
-
- //   cout << "Decrypt and decode." << endl;
- //   decryptor.decrypt(encrypted, plain);
- //   encoder.decode(plain, output);
- //   cout << "    + Result vector ...... Correct." << endl;
-  
-   
-
-std::atomic<bool> running(true); // Variabile per gestire l'esecuzione del processo
-pid_t pythonPid = -1;  // Variabile per il PID del processo Python
-
-void startPythonScript() {
-    // Usa popen per avviare lo script Python e ottenere il PID
-    FILE* pipe = popen("python3 autoGainTimeExportAes.py & echo $!", "r"); // Modifica con il percorso corretto
-    if (!pipe) {
-        std::cerr << "Errore: impossibile avviare il programma Python." << std::endl;
+void example_ckks_performance_custom()
+{
+    size_t poly_modulus_degree = 0;
+    cout << endl << "Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): ";
+    if (!(cin >> poly_modulus_degree))
+    {
+        cout << "Invalid option." << endl;
+        cin.clear();
+        cin.ignore(numeric_limits<streamsize>::max(), '\n');
+        return;
+    }
+    if (poly_modulus_degree < 1024 || poly_modulus_degree > 32768 ||
+        (poly_modulus_degree & (poly_modulus_degree - 1)) != 0)
+    {
+        cout << "Invalid option." << endl;
         return;
     }
 
-    // Leggi il PID del processo Python
-    fscanf(pipe, "%d", &pythonPid);
-    pclose(pipe);
+    string banner = "CKKS Performance Test with Degree: ";
+    print_example_banner(banner + to_string(poly_modulus_degree));
 
-    std::cout << "Programma Python avviato con PID: " << pythonPid << std::endl;
-
-    // Attendi finché "running" è vero
-    while (running) {
-        std::this_thread::sleep_for(std::chrono::seconds(1)); // Attesa passiva
-    }
-
-    // Se "running" diventa false, termina il processo Python
-    if (pythonPid > 0) {
-        std::cout << "Terminazione del programma Python con PID: " << pythonPid << std::endl;
-        std::string killCommand = "kill " + std::to_string(pythonPid);
-        std::system(killCommand.c_str());
-    }
+    EncryptionParameters parms(scheme_type::ckks);
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    ckks_performance_test(parms);
 }
 
-
-void encapsulate_packet(size_t packet_size) {
-cout<< "-----------------------------------------------------------"<<endl;
-updateTime(buffer, sizeof(buffer));
-std::cout << "Timing " << buffer << std::endl;
-cout<< "-----------------------------------------------------------"<<endl;
-// Generazione dati casuali
-    std::vector<uint8_t> data = generate_random_data(packet_size);
-//----------------------------------------AES-----------------------------------------
-    // Avvio script misure AES - CHIAVI    
+std::vector<uint8_t> aes_encryption() {
+    cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing " << buffer << std::endl;
-
-    auto start= std::chrono::high_resolution_clock::now();
-    //std::thread pythonThread(startPythonScript);
+    std::cout << "Timing inizio generazioni chiavi AES " << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     // Chiavi e IV per AES
-    std::vector<uint8_t> key(32);  // AES-256
+    std::vector<uint8_t> key(16);  // AES-128, per AES-256 utilizzare 32
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
+    // Verifica che la chiave abbia la dimensione corretta per AES-128
+    if (key.size() != 16) {
+        throw std::runtime_error("Chiave non valida: la chiave AES-128 deve essere di 16 byte");
+    }
+    cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine Generazione chiavi AES" << buffer << std::endl;
-    //Inizio encryption AES
-    std::vector<uint8_t> aes_ciphertext = aes_encrypt(data, key, iv);
-    std::cout << "AES encryption complete. Ciphertext size: " << aes_ciphertext.size() << std::endl; 
-    // Stops the thread
-    //running = false;
-    // Termina la misurazione del tempo
-    auto end = std::chrono::high_resolution_clock::now(); 
-    // Safely ending the thread
-  //  if (pythonThread.joinable()) {
-  //      pythonThread.join();
-  //  }
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine AES" << buffer << std::endl;
-  
-    // Calcola la durata
-//-----------------------------------------------------------------------------------
-    std::chrono::duration<double> duration = end - start;
-    // Stampa il tempo trascorso
-    std::cout << "Tempo trascorso: " << duration.count() << " secondi" << std::endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing crittografia omomorfica BFV" << buffer << std::endl;
-    // Crittografia Omomorfica (BFV)
-   auto start2 = std::chrono::high_resolution_clock::now();
-  // thread pythonThreadBFV(startPythonScript);   
-// seal_encrypt_bfv(data);
-    
-    
-//running = false;    
-auto end2 = std::chrono::high_resolution_clock::now();
-//if (pythonThreadBFV.joinable()) {
-   //     pythonThreadBFV.join();
-   // }
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing Fine crittografia BFV" << buffer << std::endl;
-    std::chrono::duration<double> duration2 = end2 - start2;
-    std::cout << "Tempo trascorso: " << duration2.count() << " secondi" << std::endl;
-//running = true;
+    std::cout << "Timing inizio crittografia AES " << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    // Creazione del contesto per la cifratura
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        throw std::runtime_error("Errore nella creazione del contesto di cifratura");
+    }
 
-//----------------------------------------------------------------------------------    
-    auto start3 = std::chrono::high_resolution_clock::now();
-//thread pythonThreadCkks(startPythonScript);
-     seal_encrypt_ckks(data);
-//running =false;
-    auto end3 = std::chrono::high_resolution_clock::now();
-//if (pythonThreadCkks.joinable()) {
- //       pythonThreadCkks.join();
-  //  }
-    std::chrono::duration<double> duration3 = end3 - start3;
-    std::cout << "Tempo trascorso CKKS: " << duration3.count() << " secondi" << std::endl;
-    // Confronto e Output
-   // std::cout << "AES Ciphertext Size: " << aes_ciphertext.size() << std::endl;
-  //  std::cout << "Homomorphic Ciphertext Size: " << seal_ciphertext.size() << std::endl;
+    // Buffer per il testo cifrato
+    std::vector<uint8_t> ciphertext(packet.size() + EVP_MAX_BLOCK_LENGTH);
+    int len;
+
+    // Inizializzazione della cifratura AES-128 in modalità CBC
+    EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
+
+    // Cifratura del testo in chiaro
+    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, packet.data(), packet.size());
+    int ciphertext_len = len;
+
+    // Finalizzazione della cifratura (aggiunta del padding)
+    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
+    ciphertext_len += len;
+
+    // Liberazione della memoria del contesto di cifratura
+    EVP_CIPHER_CTX_free(ctx);
+
+    // Ridimensionamento del buffer per adattarsi alla dimensione effettiva del testo cifrato
+    ciphertext.resize(ciphertext_len);
+    // Stampa del ciphertext in esadecimale
+    std::cout << "Ciphertext: ";
+    for (const auto& byte : ciphertext) {
+        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    }
+    std::cout << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing fine crittografia AES" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    return ciphertext;
 }
 
-int main() {
-    size_t packet_size = 8; // Dimensione del pacchetto
-    encapsulate_packet(packet_size);
-    return 0;
+// Funzione per generare dati casuali
+void generate_random_data(size_t size) {
+    //std::vector<uint8_t> data(size);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0, 20);
+    std::generate(packet.begin(), packet.end(), [&](){ return dis(gen); });
+    
+ // Ciclo per stampare il contenuto del testo in chiaro
+    std::cout << "Testo in chiaro generato (plaintext):" << std::endl;
+    for (const auto& num : packet) {
+        std::cout << num << " ";
+    }
+    std::cout << std::endl;
+}
+
+int main()
+{
+    size_t packet_size = 20;
+    // Generazione dati casuali
+    generate_random_data(packet_size);
+    
+    for (auto byte : packet)
+    {
+        data_double.push_back(static_cast<double>(byte));
+    }
+    //AES ENCRYPTION
+    aes_encryption();
+
+    print_example_banner("Example: Performance Test");
+
+    while (true)
+    {
+        cout << endl;
+        cout << "Select a scheme (and optionally poly_modulus_degree):" << endl;
+        cout << "  1. CKKS with default degrees" << endl;
+        cout << "  2. CKKS with a custom degree" << endl;
+        cout << "  0. Back to main menu" << endl;
+
+        int selection = 0;
+        cout << endl << "> Run performance test (1 ~ 6) or go back (0): ";
+        if (!(cin >> selection))
+        {
+            cout << "Invalid option." << endl;
+            cin.clear();
+            cin.ignore(numeric_limits<streamsize>::max(), '\n');
+            continue;
+        }
+
+        switch (selection)
+        {
+        
+        case 1:
+            //example_ckks_performance_default();
+            break;
+
+        case 2:
+            example_ckks_performance_custom();
+            break;
+
+        default:
+            cout << "Invalid option." << endl;
+        }
+    }
 }
