@@ -2,6 +2,20 @@
 // Licensed under the MIT license.
 #include "examples.h"
 #include "openssl/evp.h"
+#include "cryptopp/cryptlib.h"
+#include "cryptopp/osrng.h"
+#include "cryptopp/elgamal.h"
+#include "cryptopp/hex.h"
+#include "cryptopp/filters.h"
+#define GMPXX_USE_GMP_H
+#include <gmpxx.h>
+
+extern "C" {
+    #include <gmp.h>        // GMP header
+    #include <paillier.h>   // Paillier header
+}
+
+
 
 #define SENDING
 
@@ -30,6 +44,74 @@ void updateTime(char* buffer, std::size_t bufferSize) {
 
 static std::vector<uint8_t> packet;
 std::vector<double> data_double;
+
+void elGamal() {
+    
+
+using namespace CryptoPP;
+
+
+    // Generatore di numeri casuali
+    AutoSeededRandomPool rng;
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Inizio Generazione Chiavi EL GAMAL" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    // 1. Generazione delle chiavi ElGamal
+    ElGamalKeys::PrivateKey privateKey;
+    ElGamalKeys::PublicKey publicKey;
+
+    // Lunghezza chiave 2048 bit
+    privateKey.GenerateRandomWithKeySize(rng, 2048);
+    privateKey.MakePublicKey(publicKey);
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "INIZIO crittografia EL GAMAL" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    // 2. Messaggio da cifrare (vettore di uint8_t)
+    std::vector<uint8_t> cipherText;
+
+    // Cifratura
+    ElGamalEncryptor encryptor(publicKey);
+    StringSource(packet.data(), packet.size(), true,
+        new PK_EncryptorFilter(rng, encryptor, new VectorSink(cipherText)));
+
+    // Mostra il ciphertext in formato esadecimale
+    std::string encoded;
+    StringSource(cipherText.data(), cipherText.size(), true,
+        new HexEncoder(new StringSink(encoded)));
+    //std::cout << "Messaggio cifrato: " << encoded << std::endl;
+    std::cout << "Dimensione del messaggio cifrato: " << cipherText.size() << " byte" << std::endl;
+ updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Fine Crittografia EL GAMAL" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
+    // 3. Decifratura
+    std::vector<uint8_t> recoveredText;
+    ElGamalDecryptor decryptor(privateKey);
+    StringSource(cipherText.data(), cipherText.size(), true,
+        new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
+
+    // Mostra il messaggio decifrato (dati binari)
+    std::cout << "Messaggio decifrato (binario): ";
+    for (auto byte : recoveredText) {
+        std::cout << std::hex << static_cast<char>(byte) << " ";
+    }
+    std::cout << std::endl;
+
+    
+
+    
+}
+
+
+
+
+
+   
+
+
+
 
 void ckks_performance_test(SEALContext context)
 {
@@ -443,6 +525,42 @@ void generate_random_data(size_t size) {
     }
     std::cout << std::endl;
 }
+/
+void  paillier() {
+
+    int modulus_bits = 3072;
+     // Pointers for the public and private keys
+    paillier_pubkey_t *pubkey;
+    paillier_prvkey_t *privkey;
+
+    // Generate keys
+    paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
+
+    // Output the size of the public key modulus (N) in bytes
+    size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
+    printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
+
+    // Prepare a plaintext to encrypt
+    unsigned long int plaintext_value = 42; // Example plaintext
+    
+    paillier_plaintext_t *plaintext = paillier_plaintext_from_ui(plaintext_value);
+    
+    // Encrypt the plaintext
+    paillier_ciphertext_t *ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
+
+    // Output the size of the ciphertext
+    size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext->c, 2); // Size in bits
+    printf("Ciphertext Size: %zu bits, %zu bytes\n", ciphertext_size, (ciphertext_size + 7) / 8);
+
+    // Clean up
+    paillier_freepubkey(pubkey);
+    paillier_freeprvkey(privkey);
+    paillier_freeplaintext(plaintext);
+    paillier_freeciphertext(ciphertext);
+
+    
+}
+
 
 int main()
 {
@@ -456,9 +574,9 @@ int main()
     }
     //AES ENCRYPTION
     aes_encryption();
-
+    elGamal();
     print_example_banner("Example: Performance Test");
-
+    paillier();
     while (true)
     {
         cout << endl;
