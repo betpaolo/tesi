@@ -13,17 +13,12 @@
 extern "C" {
     #include <gmp.h>        // GMP header
     #include <paillier.h>   // Paillier header
-}
-
-
+} 
 
 #define SENDING
 
-
 using namespace std;
 using namespace seal;
-
-
 
 char buffer[100];
 // Funzione per aggiornare il buffer con l'ora corrente
@@ -45,12 +40,14 @@ void updateTime(char* buffer, std::size_t bufferSize) {
 static std::vector<uint8_t> packet;
 std::vector<double> data_double;
 
+
+
+
+
+
 void elGamal() {
-    
 
-using namespace CryptoPP;
-
-
+    using namespace CryptoPP;
     // Generatore di numeri casuali
     AutoSeededRandomPool rng;
     updateTime(buffer, sizeof(buffer));
@@ -80,9 +77,8 @@ using namespace CryptoPP;
     std::string encoded;
     StringSource(cipherText.data(), cipherText.size(), true,
         new HexEncoder(new StringSink(encoded)));
-    //std::cout << "Messaggio cifrato: " << encoded << std::endl;
     std::cout << "Dimensione del messaggio cifrato: " << cipherText.size() << " byte" << std::endl;
- updateTime(buffer, sizeof(buffer));
+    updateTime(buffer, sizeof(buffer));
     cout<< "-----------------------------------------------------------"<<endl;
     std::cout << "Fine Crittografia EL GAMAL" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
@@ -525,9 +521,22 @@ void generate_random_data(size_t size) {
     }
     std::cout << std::endl;
 }
-/
-void  paillier() {
 
+paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uint8_t>& packet) {
+    // Ottieni la dimensione del vector
+    size_t len = packet.size();
+    
+    // Crea un array di byte (void*) a partire dal vector
+    void* byte_array = static_cast<void*>(const_cast<uint8_t*>(packet.data()));
+    
+    // Chiama la funzione di Paillier per convertire l'array di byte in paillier_plaintext_t
+    paillier_plaintext_t* plaintext = paillier_plaintext_from_bytes(byte_array, len);
+    
+    return plaintext; // Restituisce il puntatore a paillier_plaintext_t
+}
+
+void  paillier() {
+    paillier_plaintext_t* plaintext = convert_vector_to_paillier_plaintext(packet);
     int modulus_bits = 3072;
      // Pointers for the public and private keys
     paillier_pubkey_t *pubkey;
@@ -540,10 +549,7 @@ void  paillier() {
     size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
     printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
 
-    // Prepare a plaintext to encrypt
-    unsigned long int plaintext_value = 42; // Example plaintext
-    
-    paillier_plaintext_t *plaintext = paillier_plaintext_from_ui(plaintext_value);
+  
     
     // Encrypt the plaintext
     paillier_ciphertext_t *ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
@@ -576,6 +582,7 @@ int main()
     aes_encryption();
     elGamal();
     print_example_banner("Example: Performance Test");
+    
     paillier();
     while (true)
     {
