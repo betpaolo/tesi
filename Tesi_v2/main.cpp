@@ -95,18 +95,7 @@ void elGamal() {
     }
     std::cout << std::endl;
 
-    
-
-    
 }
-
-
-
-
-
-   
-
-
 
 
 void ckks_performance_test(SEALContext context)
@@ -337,15 +326,15 @@ void ckks_performance_test(SEALContext context)
         vector<seal_byte> buf(buf_size);
         cout<<"Chipertext Size: "<<buf_size<<endl;
         time_start = chrono::high_resolution_clock::now();
-       // cout<<"OOOOOO"<<time_start<<endl;
+       
         encrypted.save(buf.data(), buf_size, compr_mode_type::none);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-       
+   /*    
 #ifdef SEAL_USE_ZLIB
-        /*
+        
         [Serialize Ciphertext (ZLIB)]
-        */
+       
         buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
         buf.resize(buf_size);
         cout<<"Chipertext Size with ZLIB: "<<buf_size<<endl;
@@ -353,11 +342,11 @@ void ckks_performance_test(SEALContext context)
         encrypted.save(buf.data(), buf_size, compr_mode_type::zlib);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#endif
-#ifdef SEAL_USE_ZSTD
-        /*
+#endif */
+  /*#ifdef SEAL_USE_ZSTD
+      
         [Serialize Ciphertext (Zstandard)]
-        */
+       
         buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
         buf.resize(buf_size);
         cout<<"Chipertext Size with ZSTD: "<<buf_size<<endl;
@@ -365,7 +354,7 @@ void ckks_performance_test(SEALContext context)
         encrypted.save(buf.data(), buf_size, compr_mode_type::zstd);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#endif
+#endif */
         /*
         Print a dot to indicate progress.
         */
@@ -414,10 +403,10 @@ void ckks_performance_test(SEALContext context)
     }
     cout << "Average serialize ciphertext: " << avg_serialize << " microseconds" << endl;
 #ifdef SEAL_USE_ZLIB
-    cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
+    //cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
 #endif
 #ifdef SEAL_USE_ZSTD
-    cout << "Average compressed (Zstandard) serialize ciphertext: " << avg_serialize_zstd << " microseconds" << endl;
+   // cout << "Average compressed (Zstandard) serialize ciphertext: " << avg_serialize_zstd << " microseconds" << endl;
 #endif
     cout.flush();
 }
