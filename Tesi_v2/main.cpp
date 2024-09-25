@@ -191,10 +191,16 @@ void  paillier() {
      // Pointers for the public and private keys
     paillier_pubkey_t *pubkey;
     paillier_prvkey_t *privkey;
-
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Inizio Generazione chiavi Pallier" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     // Generate keys
     paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
-
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Fine Chiavi PALLIER" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     // Output the size of the public key modulus (N) in bytes
     size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
     printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
@@ -207,7 +213,10 @@ void  paillier() {
     // Output the size of the ciphertext
     size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext->c, 2); // Size in bits
     printf("Ciphertext Size: %zu bits, %zu bytes\n", ciphertext_size, (ciphertext_size + 7) / 8);
-
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Fine Crittografia Pallier" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     // Clean up
     paillier_freepubkey(pubkey);
     paillier_freeprvkey(privkey);
@@ -223,7 +232,11 @@ void ckks_performance_test(SEALContext context)
 
     print_parameters(context);
     cout << endl;
-
+   
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Inizio generazione chiavi CKKS" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
     auto &parms = context.first_context_data()->parms();
     size_t poly_modulus_degree = parms.poly_modulus_degree();
 
@@ -260,6 +273,10 @@ void ckks_performance_test(SEALContext context)
         time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
         cout << "Done [" << time_diff.count() << " microseconds]" << endl;
     }
+    updateTime(buffer, sizeof(buffer));
+    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << "Fine Crittografia CKKS" << buffer << std::endl;
+    cout<< "-----------------------------------------------------------"<<endl;
 
     Encryptor encryptor(context, public_key);
     Decryptor decryptor(context, secret_key);
@@ -519,29 +536,7 @@ void ckks_performance_test(SEALContext context)
 #endif
     cout.flush();
 }
-void example_ckks_performance_custom()
-{
-    size_t poly_modulus_degree = 0;
-    cout << endl << "Set poly_modulus_degree (1024, 2048, 4096, 8192, 16384, or 32768): ";
-    if (!(cin >> poly_modulus_degree))
-    {
-        cout << "Invalid option." << endl;
-        cin.clear();
-        cin.ignore(numeric_limits<streamsize>::max(), '\n');
-        return;
-    }
-    if (poly_modulus_degree < 1024 || poly_modulus_degree > 32768 ||
-        (poly_modulus_degree & (poly_modulus_degree - 1)) != 0)
-    {
-        cout << "Invalid option." << endl;
-        return;
-    }
 
-    string banner = "CKKS Performance Test with Degree: ";
-    print_example_banner(banner + to_string(poly_modulus_degree));
-
-
-}
 
 int main()
 {
