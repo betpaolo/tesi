@@ -22,79 +22,56 @@ using namespace std;
 using namespace seal;
 
 char buffer[100];
-// Funzione per aggiornare il buffer con l'ora corrente
+//-- Update Time function
 void updateTime(char* buffer, std::size_t bufferSize) {
     auto now = std::chrono::system_clock::now();
     std::time_t now_c = std::chrono::system_clock::to_time_t(now);
     auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()) % 1000000;
     std::tm* local_time = std::localtime(&now_c);
-    
-    // Formatta l'ora corrente nel buffer
     std::strftime(buffer, bufferSize, "%H:%M:%S", local_time);
-    
-    // Aggiungi i microsecondi al buffer
+    // Add the microsecond
     snprintf(buffer + std::strlen(buffer), bufferSize - std::strlen(buffer), ".%06ld", microseconds.count());
 }
-
-
 
 static std::vector<uint8_t> packet;
 std::vector<double> data_double;
 
-
-
-
-
-
 void elGamal() {
 
     using namespace CryptoPP;
-    // Generatore di numeri casuali
     AutoSeededRandomPool rng;
     updateTime(buffer, sizeof(buffer));
     cout<< "-----------------------------------------------------------"<<endl;
     std::cout << "Inizio Generazione Chiavi EL GAMAL" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // 1. Generazione delle chiavi ElGamal
+    //ElGamal Key Generator
     ElGamalKeys::PrivateKey privateKey;
     ElGamalKeys::PublicKey publicKey;
-
-    // Lunghezza chiave 2048 bit
+    //2048 bit key length
     privateKey.GenerateRandomWithKeySize(rng, 2048);
     privateKey.MakePublicKey(publicKey);
     updateTime(buffer, sizeof(buffer));
-    cout<< "-----------------------------------------------------------"<<endl;
     std::cout << "INIZIO crittografia EL GAMAL" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // 2. Messaggio da cifrare (vettore di uint8_t)
     std::vector<uint8_t> cipherText;
-
-    // Cifratura
+    // Encryption
     ElGamalEncryptor encryptor(publicKey);
     StringSource(packet.data(), packet.size(), true,
         new PK_EncryptorFilter(rng, encryptor, new VectorSink(cipherText)));
 
-    // Mostra il ciphertext in formato esadecimale
-    std::string encoded;
-    StringSource(cipherText.data(), cipherText.size(), true,
-        new HexEncoder(new StringSink(encoded)));
+ 
+   // std::string encoded;
+   // StringSource(cipherText.data(), cipherText.size(), true,
+   //  new HexEncoder(new StringSink(encoded)));
     std::cout << "Dimensione del messaggio cifrato: " << cipherText.size() << " byte" << std::endl;
     updateTime(buffer, sizeof(buffer));
-    cout<< "-----------------------------------------------------------"<<endl;
     std::cout << "Fine Crittografia EL GAMAL" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // 3. Decifratura
-    std::vector<uint8_t> recoveredText;
-    ElGamalDecryptor decryptor(privateKey);
-    StringSource(cipherText.data(), cipherText.size(), true,
-        new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
-
-    // Mostra il messaggio decifrato (dati binari)
-    std::cout << "Messaggio decifrato (binario): ";
-    for (auto byte : recoveredText) {
-        std::cout << std::hex << static_cast<char>(byte) << " ";
-    }
-    std::cout << std::endl;
+    // Decryption
+    // std::vector<uint8_t> recoveredText;
+    // ElGamalDecryptor decryptor(privateKey);
+    //StringSource(cipherText.data(), cipherText.size(), true,
+    //  new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
 
 }
 
@@ -104,51 +81,46 @@ std::vector<uint8_t> aes_encryption() {
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing inizio generazioni chiavi AES " << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // Chiavi e IV per AES
+    // Key and IV for AES
     std::vector<uint8_t> key(16);  // AES-128, per AES-256 utilizzare 32
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
-    // Verifica che la chiave abbia la dimensione corretta per AES-128
-    if (key.size() != 16) {
-        throw std::runtime_error("Chiave non valida: la chiave AES-128 deve essere di 16 byte");
-    }
     cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing inizio crittografia AES " << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // Creazione del contesto per la cifratura
+    // Context creation
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx) {
         throw std::runtime_error("Errore nella creazione del contesto di cifratura");
     }
 
-    // Buffer per il testo cifrato
     std::vector<uint8_t> ciphertext(packet.size() + EVP_MAX_BLOCK_LENGTH);
     int len;
 
-    // Inizializzazione della cifratura AES-128 in modalità CBC
+    // Initialization CBC AES-128
     EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
-    // Cifratura del testo in chiaro
+    // Encryption
     EVP_EncryptUpdate(ctx, ciphertext.data(), &len, packet.data(), packet.size());
     int ciphertext_len = len;
 
-    // Finalizzazione della cifratura (aggiunta del padding)
+    // Padding
     EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
     ciphertext_len += len;
 
-    // Liberazione della memoria del contesto di cifratura
-    EVP_CIPHER_CTX_free(ctx);
+    // Memory free
+    // EVP_CIPHER_CTX_free(ctx);
 
-    // Ridimensionamento del buffer per adattarsi alla dimensione effettiva del testo cifrato
+    // buffer resize
     ciphertext.resize(ciphertext_len);
-    // Stampa del ciphertext in esadecimale
+    // Ciphertext printing
     std::cout << "Ciphertext: ";
     for (const auto& byte : ciphertext) {
         std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
     }
-    std::cout << std::endl;
+    // std::cout << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing fine crittografia AES" << buffer << std::endl;
@@ -156,16 +128,12 @@ std::vector<uint8_t> aes_encryption() {
     return ciphertext;
 }*/
 
-// Funzione per generare dati casuali
 void generate_random_data(size_t size) {
-    //std::vector<uint8_t> data(size);
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0, 20);
     std::generate(packet.begin(), packet.end(), [&](){ return dis(gen); });
-    
- // Ciclo per stampare il contenuto del testo in chiaro
-    std::cout << "Testo in chiaro generato (plaintext):" << std::endl;
+    std::cout << "Generated Plaintext:" << std::endl;
     for (const auto& num : packet) {
         std::cout << num << " ";
     }
@@ -173,22 +141,18 @@ void generate_random_data(size_t size) {
 }
 
 paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uint8_t>& packet) {
-    // Ottieni la dimensione del vector
     size_t len = packet.size();
-    
-    // Crea un array di byte (void*) a partire dal vector
     void* byte_array = static_cast<void*>(const_cast<uint8_t*>(packet.data()));
     
-    // Chiama la funzione di Paillier per convertire l'array di byte in paillier_plaintext_t
+    // Paillier plaintext
     paillier_plaintext_t* plaintext = paillier_plaintext_from_bytes(byte_array, len);
     
-    return plaintext; // Restituisce il puntatore a paillier_plaintext_t
+    return plaintext; 
 }
 
 void  paillier() {
     paillier_plaintext_t* plaintext = convert_vector_to_paillier_plaintext(packet);
     int modulus_bits = 3072;
-     // Pointers for the public and private keys
     paillier_pubkey_t *pubkey;
     paillier_prvkey_t *privkey;
     updateTime(buffer, sizeof(buffer));
@@ -205,8 +169,6 @@ void  paillier() {
     size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
     printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
 
-  
-    
     // Encrypt the plaintext
     paillier_ciphertext_t *ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
 
@@ -217,13 +179,7 @@ void  paillier() {
     cout<< "-----------------------------------------------------------"<<endl;
     std::cout << "Fine Crittografia Pallier" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    // Clean up
-    paillier_freepubkey(pubkey);
-    paillier_freeprvkey(privkey);
-    paillier_freeplaintext(plaintext);
-    paillier_freeciphertext(ciphertext);
-
-    
+        
 } 
 
 void ckks_performance_test(SEALContext context)
@@ -540,26 +496,29 @@ void ckks_performance_test(SEALContext context)
 
 int main()
 {
+//Data preparation SECTION
     size_t packet_size = 20;
-    // Generazione dati casuali
     generate_random_data(packet_size);
-    
     for (auto byte : packet)
     {
         data_double.push_back(static_cast<double>(byte));
     }
+//ENCRYTPION SECTION
+
     //AES ENCRYPTION
-  // aes_encryption();
+    // aes_encryption();
+
+    //EL Gamal Encryption
     elGamal();
-    
-    
+
+    //Paillier Encryption
     paillier();
-    print_example_banner("Example: Performance Test");
+
+    //CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
     size_t poly_modulus_degree= 1024;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     ckks_performance_test(parms);
     
-        
 }
