@@ -37,7 +37,10 @@ static std::vector<uint8_t> packet;
 std::vector<double> data_double;
 
 void elGamal() {
-
+    
+   
+  
+        
     using namespace CryptoPP;
     AutoSeededRandomPool rng;
     updateTime(buffer, sizeof(buffer));
@@ -55,11 +58,20 @@ void elGamal() {
     cout<< "-----------------------------------------------------------"<<endl;
     std::vector<uint8_t> cipherText;
     // Encryption
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    chrono::microseconds time_encode_sum(0);
+    int count =10;
+     for (int i = 0; i < count; i++)
+    {
+    time_start = chrono::high_resolution_clock::now();
     ElGamalEncryptor encryptor(publicKey);
     StringSource(packet.data(), packet.size(), true,
         new PK_EncryptorFilter(rng, encryptor, new VectorSink(cipherText)));
-
- 
+    time_end = chrono::high_resolution_clock::now();
+    time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+    }
+    auto avg_encode = time_encode_sum.count() / count;
+    std::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
    // std::string encoded;
    // StringSource(cipherText.data(), cipherText.size(), true,
    //  new HexEncoder(new StringSink(encoded)));
@@ -103,18 +115,29 @@ std::vector<uint8_t> aes_encryption() {
     EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
     // Encryption
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    chrono::microseconds time_encode_sum(0);
+    int count =10;
+     for (int i = 0; i < count; i++)
+    {
+    time_start = chrono::high_resolution_clock::now();
     EVP_EncryptUpdate(ctx, ciphertext.data(), &len, packet.data(), packet.size());
     int ciphertext_len = len;
-
     // Padding
     EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
     ciphertext_len += len;
+    time_end = chrono::high_resolution_clock::now();
+    time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+   
+    auto avg_encode = time_encode_sum.count() / count;
+    std::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
 
     // Memory free
     // EVP_CIPHER_CTX_free(ctx);
 
     // buffer resize
-    ciphertext.resize(ciphertext_len);
+    ciphertext.resize(ciphertext_len); 
+    }
     // Ciphertext printing
     std::cout << "Ciphertext: ";
     for (const auto& byte : ciphertext) {
@@ -168,9 +191,21 @@ void  paillier() {
     // Output the size of the public key modulus (N) in bytes
     size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
     printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
-
+    chrono::high_resolution_clock::time_point time_start, time_end;
+    chrono::microseconds time_encode_sum(0);
+    int count =10;
+    paillier_ciphertext_t *ciphertext;
+     for (int i = 0; i < count; i++)
+    {
+    time_start = chrono::high_resolution_clock::now();
     // Encrypt the plaintext
-    paillier_ciphertext_t *ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
+    ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
+    time_end = chrono::high_resolution_clock::now();
+    time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+    }
+    auto avg_encode = time_encode_sum.count() / count;
+    td::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
+
 
     // Output the size of the ciphertext
     size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext->c, 2); // Size in bits
