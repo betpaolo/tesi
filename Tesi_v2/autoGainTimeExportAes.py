@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from ina219 import INA219
 from ina219 import DeviceRangeError
-#from gpiozero import LED
 import time
 import logging
 import csv
@@ -9,9 +8,6 @@ from datetime import datetime
 # Configurazione del sensore INA219
 SHUNT_OHMS = 0.1
 MAX_EXPECTED_AMPS = 0.2
-
-# Configurazione del LED sul pin GPIO 17
-#led = LED(17)
 
 # Configurazione del logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -50,9 +46,7 @@ if __name__ == "__main__":
         pass
     
    # try:
-        while True:
- #           led.on()  # Accendi il LED
-            
+        while True:            
             # Inizia la misurazione del tempo
             start_time = time.perf_counter()
             
@@ -64,20 +58,9 @@ if __name__ == "__main__":
 
             # Calcola il tempo trascorso
             elapsed_time = end_time - start_time
-#            print(f"Tempo trascorso: {elapsed_time:.6f} secondi ({elapsed_time * 1_000_000:.0f} microsecondi)")
-
             # Salva i dati nel file CSV
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
             if power is not None:
                 write_to_csv(timestamp, power)
  #               print(f"Potenza salvata: {power} mW")
 
-            # Mantieni il LED acceso per un secondo (facoltativo)
-            # time.sleep(1)
-            
-            # Se si vuole fare una pausa tra le letture, decommentare la riga sottostante
-            # time.sleep(1)
-
-  #  except KeyboardInterrupt:
-        # Spegni il LED se il programma viene interrotto
- #       led.off()
