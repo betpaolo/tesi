@@ -87,7 +87,7 @@ void elGamal() {
 
 }
 
-/*
+
 std::vector<uint8_t> aes_encryption() {
     cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
@@ -129,8 +129,7 @@ std::vector<uint8_t> aes_encryption() {
     time_end = chrono::high_resolution_clock::now();
     time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
    
-    auto avg_encode = time_encode_sum.count() / count;
-    std::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
+  
 
     // Memory free
     // EVP_CIPHER_CTX_free(ctx);
@@ -138,33 +137,42 @@ std::vector<uint8_t> aes_encryption() {
     // buffer resize
     ciphertext.resize(ciphertext_len); 
     }
+      auto avg_encode = time_encode_sum.count() / count;
+    std::cout << "Average AES Encryption: " << avg_encode << " microseconds"<<  std::endl;
     // Ciphertext printing
     std::cout << "Ciphertext: ";
     for (const auto& byte : ciphertext) {
         std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
     }
-    // std::cout << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
+    std::cout << std::endl;
+    cout<< " -----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing fine crittografia AES" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
     return ciphertext;
-}*/
+}
 
 void generate_random_data(size_t size) {
+     packet.resize(size);  // Assicurati che il vettore abbia una dimensione definita
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0, 20);
-    std::generate(packet.begin(), packet.end(), [&](){ return dis(gen); });
+    
+    std::generate(packet.begin(), packet.end(), [&]() {
+        return static_cast<uint8_t>(dis(gen)); // Converti il valore in uint8_t
+    });
+    
+    // Stampa i dati generati
     std::cout << "Generated Plaintext:" << std::endl;
     for (const auto& num : packet) {
-        std::cout << num << " ";
+        std::cout << static_cast<int>(num) << " ";  // Cast per stampare come interi
     }
     std::cout << std::endl;
 }
 
 paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uint8_t>& packet) {
     size_t len = packet.size();
+    cout<<"dimension "<< len<< endl;
     void* byte_array = static_cast<void*>(const_cast<uint8_t*>(packet.data()));
     
     // Paillier plaintext
@@ -204,7 +212,7 @@ void  paillier() {
     time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
     }
     auto avg_encode = time_encode_sum.count() / count;
-    td::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
+    std::cout << "Average paillier Encryption: " << avg_encode << "microseconds"<<  std::endl;
 
 
     // Output the size of the ciphertext
@@ -216,9 +224,21 @@ void  paillier() {
     cout<< "-----------------------------------------------------------"<<endl;
         
 } 
+void ckks_performance_test2(SEALContext context){
+    
+     EncryptionParameters parms(scheme_type::ckks);
+    size_t poly_modulus_degree= 1024;
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+
+
+}
+
 
 void ckks_performance_test(SEALContext context)
 {
+
+   
     chrono::high_resolution_clock::time_point time_start, time_end;
 
     print_parameters(context);
@@ -353,7 +373,7 @@ void ckks_performance_test(SEALContext context)
         decryptor.decrypt(encrypted, plain2);
         time_end = chrono::high_resolution_clock::now();
         time_decrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-
+        
         /*
         [Add]
         */
@@ -368,6 +388,7 @@ void ckks_performance_test(SEALContext context)
         evaluator.add_inplace(encrypted2, encrypted2);
         evaluator.add_inplace(encrypted1, encrypted2);
         time_end = chrono::high_resolution_clock::now();
+        //cout <<"rumore"<< decryptor.invariant_noise_budget(encrypted2)<< endl;
         time_add_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
         /*
@@ -456,7 +477,7 @@ void ckks_performance_test(SEALContext context)
         */
         buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
         buf.resize(buf_size);
-        time_start = chrono::high_resolution_clock::now();
+    cout <<"chipertext dimension using compression ZLIB: "<< buf_size <<endl;        time_start = chrono::high_resolution_clock::now();
         encrypted.save(buf.data(), buf_size, compr_mode_type::zlib);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
@@ -467,16 +488,13 @@ void ckks_performance_test(SEALContext context)
         */
         buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
         buf.resize(buf_size);
+        cout <<"chipertext dimension using compression ZSTD: "<< buf_size <<endl;
         time_start = chrono::high_resolution_clock::now();
         encrypted.save(buf.data(), buf_size, compr_mode_type::zstd);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 #endif
-        /*
-        Print a dot to indicate progress.
-        */
-        cout << ".";
-        cout.flush();
+        
     }
 
     cout << " Done" << endl << endl;
@@ -538,22 +556,28 @@ int main()
     {
         data_double.push_back(static_cast<double>(byte));
     }
+    for (const auto& num : data_double) {
+        std::cout << num << " ";  // Cast per stampare come interi
+    }
+    std::cout << std::endl;
+    
 //ENCRYTPION SECTION
 
     //AES ENCRYPTION
-    // aes_encryption();
+     aes_encryption();
 
     //EL Gamal Encryption
-    elGamal();
+    //elGamal();
 
     //Paillier Encryption
-    paillier();
+    //paillier();
 
     //CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
     size_t poly_modulus_degree= 1024;
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    ckks_performance_test(parms);
+   // ckks_performance_test(parms);
+    //ckks_performance_test2(parms);
     
 }
