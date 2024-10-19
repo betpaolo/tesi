@@ -94,6 +94,8 @@ HEPowerConsumption: CMakeFiles/HEPowerConsumption.dir/main.cpp.o
 HEPowerConsumption: CMakeFiles/HEPowerConsumption.dir/build.make
 HEPowerConsumption: /usr/local/lib/libseal-4.1.a
 HEPowerConsumption: /usr/lib/x86_64-linux-gnu/libssl.so
+HEPowerConsumption: /usr/local/lib/libpaillier.a
+HEPowerConsumption: /usr/lib/x86_64-linux-gnu/libgmp.a
 HEPowerConsumption: /usr/lib/x86_64-linux-gnu/libcrypto.so
 HEPowerConsumption: CMakeFiles/HEPowerConsumption.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/paolo/dirTesi/tesi/Tesi_v2/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable HEPowerConsumption"
