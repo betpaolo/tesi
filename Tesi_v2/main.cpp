@@ -9,6 +9,7 @@
 #include "cryptopp/filters.h"
 #define GMPXX_USE_GMP_H
 #include <gmpxx.h>
+#include <fstream>  
 
 extern "C" {
     #include <gmp.h>        // GMP header
@@ -88,12 +89,16 @@ void elGamal() {
 }
 
 
-std::vector<uint8_t> aes_encryption() {
+void aes_encryption(int packetDimension) {
+   /*
     cout<< "-----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing inizio generazioni chiavi AES " << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    int count =10;
+    */
+    std::ofstream file("encryption_data.csv", std::ios::app); // Usa 'app' per aggiungere righe
+   
+    long long count =10;
     // Key and IV for AES
     std::vector<uint8_t> key(16);  // AES-128, per AES-256 utilizzare 32
     std::vector<uint8_t> iv(16);   // IV
@@ -122,12 +127,12 @@ std::vector<uint8_t> aes_encryption() {
     // Encryption
     chrono::high_resolution_clock::time_point time_start, time_end;
     chrono::microseconds time_encode_sum(0);
-    
+    int ciphertext_len;
      for (int i = 1; i < count; i++)
     {
     time_start = chrono::high_resolution_clock::now();
     EVP_EncryptUpdate(ctx, ciphertext.data(), &len, packet.data(), packet.size());
-    int ciphertext_len = len;
+    ciphertext_len = len;
     // Padding
     EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
     ciphertext_len += len;
@@ -139,39 +144,46 @@ std::vector<uint8_t> aes_encryption() {
     // Memory free
      //EVP_CIPHER_CTX_free(ctx);
 
+   
+    } 
     // buffer resize
-    ciphertext.resize(ciphertext_len); 
-    }
+   // ciphertext.resize(ciphertext_len); 
     auto avg_encode = time_encode_sum.count() / count;
-    std::cout << "Average AES Encryption: " << avg_encode << " microseconds"<<  std::endl;
-    // Ciphertext printing
-    std::cout << "Ciphertext: ";
-    for (const auto& byte : ciphertext) {
-        std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    std::cout << "Average AES Encryption: " << avg_encode << " microseconds, with packet size: "<< ciphertext_len<< " and data length encrypted: "<< packetDimension<<  std::endl;
+     if (file.is_open()) {
+        file << avg_encode << "," << ciphertext_len << "," << packetDimension << "\n";
+        file.close();
+        std::cout << "Data saved to encryption_data.csv" << std::endl;
+    } else {
+        std::cerr << "Error opening file!" << std::endl;
     }
+    // Ciphertext printing
+    // std::cout << "Ciphertext: ";
+    //for (const auto& byte : ciphertext) {
+    //   std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
+    // }
     std::cout << std::endl;
     cout<< " -----------------------------------------------------------"<<endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing fine crittografia AES" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
-    return ciphertext;
+   
 }
 
 void generate_random_data(size_t size) {
-     packet.resize(size);  // Assicurati che il vettore abbia una dimensione definita
+    packet.resize(size);  // Assicurati che il vettore abbia una dimensione definita
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0, 20);
-    
     std::generate(packet.begin(), packet.end(), [&]() {
         return static_cast<uint8_t>(dis(gen)); // Converti il valore in uint8_t
     });
     
     // Stampa i dati generati
-    std::cout << "Generated Plaintext:" << std::endl;
-    for (const auto& num : packet) {
-        std::cout << static_cast<int>(num) << " ";  // Cast per stampare come interi
-    }
+    //std::cout << "Generated Plaintext:" << std::endl;
+    // for (const auto& num : packet) {
+    //    std::cout << static_cast<int>(num) << " ";  // Cast per stampare come interi
+    //}
     std::cout << std::endl;
 }
 
@@ -274,6 +286,236 @@ double calculate_error(const vector<double>& original, const vector<double>& dec
 
     return error_sum / original.size(); // Return the average error
 } 
+
+void ckks_encryption(SEALContext context, int dimension){
+    
+ chrono::high_resolution_clock::time_point time_start, time_end;
+ std::ofstream file("encryption_data_ckks.csv", std::ios::app); // Usa 'app' per aggiungere righe
+
+    print_parameters(context);
+    cout << endl;
+
+    auto &parms = context.first_context_data()->parms();
+    size_t poly_modulus_degree = parms.poly_modulus_degree();
+
+    cout << "Generating secret/public keys: ";
+    KeyGenerator keygen(context);
+    cout << "Done" << endl;
+
+    auto secret_key = keygen.secret_key();
+    PublicKey public_key;
+    keygen.create_public_key(public_key);
+
+    RelinKeys relin_keys;
+    GaloisKeys gal_keys;
+    chrono::microseconds time_diff;
+    if (context.using_keyswitching())
+    {
+        cout << "Generating relinearization keys: ";
+        time_start = chrono::high_resolution_clock::now();
+        keygen.create_relin_keys(relin_keys);
+        time_end = chrono::high_resolution_clock::now();
+        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
+
+        if (!context.first_context_data()->qualifiers().using_batching)
+        {
+            cout << "Given encryption parameters do not support batching." << endl;
+            return;
+        }
+
+        cout << "Generating Galois keys: ";
+        time_start = chrono::high_resolution_clock::now();
+        keygen.create_galois_keys(gal_keys);
+        time_end = chrono::high_resolution_clock::now();
+        time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        cout << "Done [" << time_diff.count() << " microseconds]" << endl;
+    }
+
+    Encryptor encryptor(context, public_key);
+    Decryptor decryptor(context, secret_key);
+    Evaluator evaluator(context);
+    CKKSEncoder ckks_encoder(context);
+
+    chrono::microseconds time_encode_sum(0);
+    chrono::microseconds time_decode_sum(0);
+    chrono::microseconds time_encrypt_sum(0);
+    chrono::microseconds time_decrypt_sum(0);
+    chrono::microseconds time_add_sum(0);
+    chrono::microseconds time_multiply_sum(0);
+    chrono::microseconds time_multiply_plain_sum(0);
+    chrono::microseconds time_square_sum(0);
+    chrono::microseconds time_relinearize_sum(0);
+    chrono::microseconds time_rescale_sum(0);
+    chrono::microseconds time_rotate_one_step_sum(0);
+    chrono::microseconds time_rotate_random_sum(0);
+    chrono::microseconds time_conjugate_sum(0);
+    chrono::microseconds time_serialize_sum(0);
+#ifdef SEAL_USE_ZLIB
+    chrono::microseconds time_serialize_zlib_sum(0);
+#endif
+#ifdef SEAL_USE_ZSTD
+    chrono::microseconds time_serialize_zstd_sum(0);
+#endif
+    /*
+    How many times to run the test?
+    */
+    long long count = 10;
+
+    /*
+    Populate a vector of floating-point values to batch.
+    */
+    vector<double> pod_vector;
+    random_device rd;
+    size_t buf_sizeNone;
+    size_t buf_sizeZLIB;
+    size_t buf_sizeZstandard;
+    for (size_t i = 0; i < dimension && i < ckks_encoder.slot_count(); i++)
+    {
+        pod_vector.push_back(1.001 * static_cast<double>(i));
+    }
+
+    cout << "Running tests ";
+    for (long long i = 0; i < count; i++)
+    {
+        /*
+        [Encoding]
+        For scale we use the square root of the last coeff_modulus prime
+        from parms.
+        */
+        Plaintext plain(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0);
+        /*
+
+        */
+        double scale = sqrt(static_cast<double>(parms.coeff_modulus().back().value()));
+        time_start = chrono::high_resolution_clock::now();
+        ckks_encoder.encode(pod_vector, scale, plain);
+        time_end = chrono::high_resolution_clock::now();
+        time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Decoding]
+        */
+        vector<double> pod_vector2(ckks_encoder.slot_count());
+        time_start = chrono::high_resolution_clock::now();
+        ckks_encoder.decode(plain, pod_vector2);
+        time_end = chrono::high_resolution_clock::now();
+        time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Encryption]
+        */
+        Ciphertext encrypted(context);
+        time_start = chrono::high_resolution_clock::now();
+        encryptor.encrypt(plain, encrypted);
+        time_end = chrono::high_resolution_clock::now();
+        time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Decryption]
+        */
+        Plaintext plain2(poly_modulus_degree, 0);
+        time_start = chrono::high_resolution_clock::now();
+        decryptor.decrypt(encrypted, plain2);
+        time_end = chrono::high_resolution_clock::now();
+        time_decrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+
+        /*
+        [Serialize Ciphertext]
+        */
+        size_t buf_sizeNone = static_cast<size_t>(encrypted.save_size(compr_mode_type::none));
+        vector<seal_byte> buf(buf_sizeNone);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeNone, compr_mode_type::none);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#ifdef SEAL_USE_ZLIB
+        /*
+        [Serialize Ciphertext (ZLIB)]
+        */
+        buf_sizeZLIB = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
+        buf.resize(buf_sizeZLIB);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeZLIB, compr_mode_type::zlib);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
+#ifdef SEAL_USE_ZSTD
+        /*
+        [Serialize Ciphertext (Zstandard)]
+        */
+        buf_sizeZstandard = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
+        buf.resize(buf_sizeZstandard);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeZstandard, compr_mode_type::zstd);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
+        /*
+        Print a dot to indicate progress.
+        */
+        cout << ".";
+        cout.flush();
+    }
+
+    cout << " Done" << endl << endl;
+    cout.flush();
+
+    auto avg_encode = time_encode_sum.count() / count;
+    auto avg_decode = time_decode_sum.count() / count;
+    auto avg_encrypt = time_encrypt_sum.count() / count;
+    auto avg_decrypt = time_decrypt_sum.count() / count;
+    auto avg_add = time_add_sum.count() / (3 * count);
+    auto avg_multiply = time_multiply_sum.count() / count;
+    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
+    auto avg_square = time_square_sum.count() / count;
+    auto avg_relinearize = time_relinearize_sum.count() / count;
+    auto avg_rescale = time_rescale_sum.count() / count;
+    auto avg_rotate_one_step = time_rotate_one_step_sum.count() / (2 * count);
+    auto avg_rotate_random = time_rotate_random_sum.count() / count;
+    auto avg_conjugate = time_conjugate_sum.count() / count;
+    auto avg_serialize = time_serialize_sum.count() / count;
+#ifdef SEAL_USE_ZLIB
+    auto avg_serialize_zlib = time_serialize_zlib_sum.count() / count;
+#endif
+#ifdef SEAL_USE_ZSTD
+    auto avg_serialize_zstd = time_serialize_zstd_sum.count() / count;
+#endif
+    cout << "Average encode: " << avg_encode << " microseconds" << endl;
+    cout << "Average decode: " << avg_decode << " microseconds" << endl;
+    cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
+    cout << "Average decrypt: " << avg_decrypt << " microseconds" << endl;
+    cout << "Average add: " << avg_add << " microseconds" << endl;
+    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
+    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
+    cout << "Average square: " << avg_square << " microseconds" << endl;
+    if (context.using_keyswitching())
+    {
+        cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
+        cout << "Average rescale: " << avg_rescale << " microseconds" << endl;
+        cout << "Average rotate vector one step: " << avg_rotate_one_step << " microseconds" << endl;
+        cout << "Average rotate vector random: " << avg_rotate_random << " microseconds" << endl;
+        cout << "Average complex conjugate: " << avg_conjugate << " microseconds" << endl;
+    }
+    cout << "Average serialize ciphertext: " << avg_serialize << " microseconds" << endl;
+#ifdef SEAL_USE_ZLIB
+    cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
+#endif
+#ifdef SEAL_USE_ZSTD
+    cout << "Average compressed (Zstandard) serialize ciphertext: " << avg_serialize_zstd << " microseconds" << endl;
+#endif
+    cout.flush();
+    auto totTimeEncryption = avg_encode+avg_encrypt+avg_serialize;
+   if (file.is_open()) {
+        file << totTimeEncryption  << "," << buf_sizeNone << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "\n";
+        file.close();
+        std::cout << "Data saved to encryption_dataCkks.csv" << std::endl;
+    } else {
+        std::cerr << "Error opening file!" << std::endl;
+    }
+}
+
 
 void ckks_variance(SEALContext context)
 {
@@ -412,30 +654,17 @@ void ckks_variance(SEALContext context)
     //{
         /*
         [Encoding]
-        For scale we use the square root of the last coeff_modulus prime
-        from parms.
-        */
+              */
         Plaintext plain(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0);
         /*
 
         */
-        double scale =  pow(2.0, scaleFactor); //sqrt(static_cast<double>(parms.coeff_modulus().back().value()))*2;
-        cout <<"Scale "<<scale<<endl; // sqrt(static_cast<double>(parms.coeff_modulus().back().value()))<<endl;
-
+        double scale =  pow(2.0, scaleFactor);
         time_start = chrono::high_resolution_clock::now();
         ckks_encoder.encode(pod_vector, scale, plain);
         time_end = chrono::high_resolution_clock::now();
         time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-
-        /*
-        [Decoding]
-      
-        vector<double> pod_vector2(ckks_encoder.slot_count());
-        time_start = chrono::high_resolution_clock::now();
-        ckks_encoder.decode(plain, pod_vector2);
-        time_end = chrono::high_resolution_clock::now();
-        time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-  */
+       
         /*
         [Encryption]
         */
@@ -481,10 +710,7 @@ void ckks_variance(SEALContext context)
                 cout << pod_vector4[i]<< " ";
         
             }
-            
- 
- 
- 
+
         Ciphertext CSubstracted;
         
         AverageNegated.scale()=pow(2.0, scaleFactor);
@@ -525,8 +751,6 @@ void ckks_variance(SEALContext context)
         }
         Ciphertext Result;
         Ciphertext AveragePos;
-        cout << "sumSquared" <<SumSquared.parms_id()<< "plainAve"<< plainAveragePos.parms_id()<<endl;
-       //encryptor.encrypt(plainAveragePos, AverageP);
         evaluator.mod_switch_to_inplace(plainAveragePos, SumSquared.parms_id());
         encryptor.encrypt(plainAveragePos, AveragePos);
         evaluator.multiply_inplace(SumSquared, AveragePos);
@@ -579,7 +803,8 @@ void ckks_variance(SEALContext context)
         */
         buf_size = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
         buf.resize(buf_size);
-        cout <<"chipertext dimension using compression ZLIB: "<< buf_size <<endl;        time_start = chrono::high_resolution_clock::now();
+        cout <<"chipertext dimension using compression ZLIB: "<< buf_size <<endl;  
+        time_start = chrono::high_resolution_clock::now();
         encrypted.save(buf.data(), buf_size, compr_mode_type::zlib);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
@@ -597,7 +822,7 @@ void ckks_variance(SEALContext context)
         time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 #endif
         
-    }
+    
 
     cout << " Done" << endl << endl;
     cout.flush();
@@ -652,38 +877,52 @@ void ckks_variance(SEALContext context)
 int main()
 {
 //Data preparation SECTION
+for (int i=1; i<=512; i++){
     size_t packet_size = 20;
-    generate_random_data(packet_size);
+    generate_random_data(i);
     for (auto byte : packet)
     {
         data_double.push_back(static_cast<double>(byte));
     }
+    /*
     for (const auto& num : data_double) {
         std::cout << num << " ";  // Cast per stampare come interi
     }
-    std::cout << std::endl;
+    std::cout << std::endl;*/
     
 //ENCRYTPION SECTION
 
-    //AES ENCRYPTION
-   //  aes_encryption();
+//AES ENCRYPTION
 
-    //EL Gamal Encryption
+    aes_encryption(i);
+    EncryptionParameters parms(scheme_type::ckks);
+    size_t poly_modulus_degree1= 1024;
+    parms.set_poly_modulus_degree(poly_modulus_degree1);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree1));
+    //CKKS ENCRYPTION
+
+    
+    ckks_encryption(parms, i);
+}
+
+
+//EL Gamal Encryption
+
     //elGamal();
 
-    //Paillier Encryption
+//Paillier Encryption
+
     //paillier();
 
-    //CKKS Encryption
-    EncryptionParameters parms(scheme_type::ckks);
-    cout << CoeffModulus::MaxBitCount(4096)<< endl;
-    size_t poly_modulus_degree= 8192;
-    parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {60,29,29,60}));
+//CKKS Variance
+    EncryptionParameters parms2(scheme_type::ckks);
+    size_t poly_modulus_degree2= 8192;
+    parms2.set_poly_modulus_degree(poly_modulus_degree2);
+    parms2.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree2, {60,29,29,60}));
     
     //parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {40, 20, 20, 29}));
     //  parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    ckks_variance(parms);
+   // ckks_variance(parms2);
 
     
 }
