@@ -548,7 +548,17 @@ void ckks_encryption(SEALContext context, int dimension){
         pod_vector.push_back(1.001 * static_cast<double>(i));
     }
 
+    Plaintext plain2(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0);
+    double scale = sqrt(static_cast<double>(parms.coeff_modulus().back().value()));
+    ckks_encoder.encode(pod_vector, scale, plain2);
+    Ciphertext encrypted(context);
+    encryptor.encrypt(plain2, encrypted);
+
     cout << "Running tests ";
+    std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing inizio crittografia CKKS " << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
     for (long long i = 0; i < count; i++)
     {
         /*
@@ -565,24 +575,31 @@ void ckks_encryption(SEALContext context, int dimension){
         ckks_encoder.encode(pod_vector, scale, plain);
         time_end = chrono::high_resolution_clock::now();
         time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-
+        /*
+        [Encryption]
+        */
+        
+        time_start = chrono::high_resolution_clock::now();
+        encryptor.encrypt(plain, encrypted);
+        time_end = chrono::high_resolution_clock::now();
+        time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+    }
+    std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing inizio decrittografia CKKS " << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
+      for (long long i = 0; i < count; i++){  
+         Plaintext plain(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0); 
         /*
         [Decoding]
         */
         vector<double> pod_vector2(ckks_encoder.slot_count());
         time_start = chrono::high_resolution_clock::now();
-        ckks_encoder.decode(plain, pod_vector2);
+        ckks_encoder.decode(plain2, pod_vector2);
         time_end = chrono::high_resolution_clock::now();
         time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
-        /*
-        [Encryption]
-        */
-        Ciphertext encrypted(context);
-        time_start = chrono::high_resolution_clock::now();
-        encryptor.encrypt(plain, encrypted);
-        time_end = chrono::high_resolution_clock::now();
-        time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        
 
         /*
         [Decryption]
@@ -603,7 +620,7 @@ void ckks_encryption(SEALContext context, int dimension){
         encrypted.save(buf.data(), buf_sizeNone, compr_mode_type::none);
         time_end = chrono::high_resolution_clock::now();
         time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#ifdef SEAL_USE_ZLIB
+#ifndef SEAL_USE_ZLIB
         /*
         [Serialize Ciphertext (ZLIB)]
         */
@@ -614,7 +631,7 @@ void ckks_encryption(SEALContext context, int dimension){
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 #endif
-#ifdef SEAL_USE_ZSTD
+#ifndef SEAL_USE_ZSTD
         /*
         [Serialize Ciphertext (Zstandard)]
         */
@@ -631,7 +648,10 @@ void ckks_encryption(SEALContext context, int dimension){
         cout << ".";
         cout.flush();
     }
-
+std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing FINE DECRITTOGRAFIA CKKS " << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
     cout << " Done" << endl << endl;
     cout.flush();
 
@@ -1158,7 +1178,6 @@ for (int i=1; i<=512; i=i+253){
     std::cout << std::endl;*/
     
 //ENCRYTPION SECTION
-
 //AES ENCRYPTION
 
     aes_encryption(i);
