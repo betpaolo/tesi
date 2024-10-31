@@ -647,7 +647,7 @@ void ckks_encryption(SEALContext context, int dimension){
         */
         cout << ".";
         cout.flush();
-    }
+    }  
 std::cout << "-----------------------------------------------------------" << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Timing FINE DECRITTOGRAFIA CKKS " << buffer << std::endl;
