@@ -172,7 +172,7 @@ void aes_encryption(int packetDimension) {
 
 
     long long count = 10;
-    std::vector<uint8_t> key(32);  // AES-256, 16 per avere AES-128
+    std::vector<uint8_t> key(16);  // AES-256, 16 per avere AES-128
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
@@ -196,7 +196,7 @@ void aes_encryption(int packetDimension) {
     chrono::microseconds time_encode_sum(0), time_decode_sum(0);
     
     // Inizializzazione crittografia
-    EVP_EncryptInit_ex(ctx_enc, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
+    EVP_EncryptInit_ex(ctx_enc, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
     // Ciclo per cifratura
     for (int i = 1; i <= count; i++) {
@@ -213,7 +213,7 @@ void aes_encryption(int packetDimension) {
     std::cout << "Average AES Encryption: " << avg_encode << " microseconds, with packet size: " << ciphertext_len << " and data length encrypted: " << packet.size() << std::endl;
 
     // Inizializzazione decifratura
-    EVP_DecryptInit_ex(ctx_dec, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
+    EVP_DecryptInit_ex(ctx_dec, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
     int decrypted_len;
     for (int i = 1; i <= count; i++) {
@@ -225,16 +225,20 @@ void aes_encryption(int packetDimension) {
         auto time_end = chrono::high_resolution_clock::now();
         time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
     }
+    std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing fine decifratura AES" << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
 
     auto avg_decode = time_decode_sum.count() / count;
     std::cout << "Average AES Decryption: " << avg_decode << " microseconds" << std::endl;
 
     // Scrivi dati su file
-    std::ofstream file("encryption_data.csv", std::ios::app);
+    std::ofstream file("encryption_data_aes.csv", std::ios::app);
     if (file.is_open()) {
         file << avg_encode << "," << ciphertext_len << "," << packet.size()  << avg_decode << ","<< "\n";
         file.close();
-        std::cout << "Data saved to encryption_data.csv" << std::endl;
+        std::cout << "Data saved to encryption_data_aes.csv" << std::endl;
     } else {
         std::cerr << "Error opening file!" << std::endl;
     }
@@ -243,10 +247,7 @@ void aes_encryption(int packetDimension) {
     EVP_CIPHER_CTX_free(ctx_enc);
     EVP_CIPHER_CTX_free(ctx_dec);
 
-    std::cout << "-----------------------------------------------------------" << std::endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing fine crittografia e decifratura AES " << buffer << std::endl;
-    std::cout << "-----------------------------------------------------------" << std::endl;
+    
 
     
 }
@@ -1135,17 +1136,17 @@ void paillier_example_sum(int num_addends) {
     paillier_pubkey_t *pubkey;
     paillier_prvkey_t *privkey;
 
-    // Generazione delle chiavi
+    // Key Generation
     paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
 
-    // Inizializza il ciphertext per la somma totale
+    // Ciphertext Init
     paillier_ciphertext_t *sum_ciphertext = paillier_create_enc_zero();
 
-    // Mantieni traccia della somma in plaintext per verifica
+    // Plaintext for verification
     mpz_t plaintext_sum;
     mpz_init(plaintext_sum);
 
-    // Variabili per misurare il tempo e dimensione
+    
     std::chrono::microseconds time_encode_sum(0), time_homomorphic_sum(0), time_decode_sum(0);
     size_t total_ciphertext_size = 0;
 
@@ -1176,19 +1177,19 @@ void paillier_example_sum(int num_addends) {
         paillier_freeciphertext(ciphertext_addend);
     }
 
-    // Decifra la somma totale cifrata e misura il tempo
+    // decryption of the result
     auto time_start = std::chrono::high_resolution_clock::now();
     paillier_plaintext_t *decrypted_sum = paillier_dec(NULL, pubkey, privkey, sum_ciphertext);
     auto time_end = std::chrono::high_resolution_clock::now();
     time_decode_sum = std::chrono::duration_cast<std::chrono::microseconds>(time_end - time_start);
 
-    // Stampa i risultati per la verifica
+    // Verificaition
     char* decrypted_sum_str = mpz_get_str(NULL, 10, decrypted_sum->m);
     char* plaintext_sum_str = mpz_get_str(NULL, 10, plaintext_sum);
     std::cout << "Decrypted sum of 1 to " << num_addends << ": " << decrypted_sum_str << std::endl;
     std::cout << "Expected sum of 1 to " << num_addends << ": " << plaintext_sum_str << std::endl;
 
-    // Calcola i tempi medi e stampa i risultati
+    //Time
     auto avg_encode_time = time_encode_sum.count() / num_addends;
     auto avg_ciphertext_size = total_ciphertext_size / num_addends;
     std::cout << "Average encryption time: " << avg_encode_time << " microseconds" << std::endl;
@@ -1196,7 +1197,7 @@ void paillier_example_sum(int num_addends) {
     std::cout << "Decryption time: " << time_decode_sum.count() << " microseconds" << std::endl;
     std::cout << "Average ciphertext size: " << avg_ciphertext_size << " bits, " << (avg_ciphertext_size + 7) / 8 << " bytes" << std::endl;
 
-    // Esporta i dati in un file CSV
+    // Export in csv
     std::ofstream file("paillier_performance_data.csv", std::ios::app);
     if (file.is_open()) {
         file << num_addends << "," 
@@ -1210,7 +1211,7 @@ void paillier_example_sum(int num_addends) {
         std::cerr << "Error opening file!" << std::endl;
     }
 
-    // Libera la memoria
+    // Memory freeing 
     free(decrypted_sum_str);
     free(plaintext_sum_str);
     mpz_clear(plaintext_sum);
@@ -1222,7 +1223,7 @@ void paillier_example_sum(int num_addends) {
 int main()
 {
 //Data preparation SECTION
-for (int i=1; i<=512; i++){
+for (int i=512; i<=10000; i=i+10){
     size_t packet_size = 20;
     generate_random_data(i);
   
@@ -1236,7 +1237,7 @@ for (int i=1; i<=512; i++){
 
 //AES ENCRYPTION
 
-    //aes_encryption(i);
+    aes_encryption(i);
     EncryptionParameters parms(scheme_type::ckks);
     size_t poly_modulus_degree1= 1024;
     parms.set_poly_modulus_degree(poly_modulus_degree1);
@@ -1244,7 +1245,7 @@ for (int i=1; i<=512; i++){
     //CKKS ENCRYPTION
 
     
-  //  ckks_encryption(parms, i);
+  ckks_encryption(parms, i);
 
 
 
@@ -1255,7 +1256,7 @@ for (int i=1; i<=512; i++){
 //Paillier Encryption
 
    // paillier();
-   paillier_example_sum(i);
+  // paillier_example_sum(i);
 }
 
 //SCENARIO I - CKKS - PAILLIER
@@ -1267,14 +1268,15 @@ parmsScenario1.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degreeSce
 //encryption_ckks_paillier(parmsScenario1);
 //SCENARIO II - CKKS Sum
 //Scenario III - CKKS Variance
+
     EncryptionParameters parms2(scheme_type::ckks);
     size_t poly_modulus_degree2= 8192;
     parms2.set_poly_modulus_degree(poly_modulus_degree2);
     parms2.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree2, {60,29,29,60}));
     
     //parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {40, 20, 20, 29}));
-    //  parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-   // ckks_variance(parms2);
+    //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
+    //ckks_variance(parms2);
 
     
 }
