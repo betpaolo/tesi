@@ -90,97 +90,14 @@ void elGamal() {
 
 
 void aes_encryption(int packetDimension) {
-   /*
-    cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing inizio generazioni chiavi AES " << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
-    
-    std::ofstream file("encryption_data.csv", std::ios::app); // Usa 'app' per aggiungere righe
-   
-    long long count =10;
-    // Key and IV for AES
-    std::vector<uint8_t> key(32);  // AES-128, per AES-256 utilizzare 32
-    std::vector<uint8_t> iv(16);   // IV
-    // Context creation
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    //for (int i=1; i<=count; i++){
-    
-    std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
-    std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
-    cout<< "-----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing inizio crittografia AES " << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
-   
-    if (!ctx) {
-        throw std::runtime_error("Errore nella creazione del contesto di cifratura");
-    }
-    //}
-
-    std::vector<uint8_t> ciphertext(packet.size() + EVP_MAX_BLOCK_LENGTH);
-    int len;
-
-    // Initialization CBC AES-128
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), nullptr, key.data(), iv.data());
-
-    // Encryption
-    chrono::high_resolution_clock::time_point time_start, time_end;
-    chrono::microseconds time_encode_sum(0);
-    int ciphertext_len;
-     for (int i = 1; i < count; i++)
-    {
-    time_start = chrono::high_resolution_clock::now();
-    EVP_EncryptUpdate(ctx, ciphertext.data(), &len, packet.data(), packet.size());
-    ciphertext_len = len;
-    // Padding
-    EVP_EncryptFinal_ex(ctx, ciphertext.data() + len, &len);
-    ciphertext_len += len;
-    time_end = chrono::high_resolution_clock::now();
-    time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-   
   
-
-    // Memory free
-     //EVP_CIPHER_CTX_free(ctx);
-
-   
-    } 
-    // buffer resize
-   // ciphertext.resize(ciphertext_len); 
-    auto avg_encode = time_encode_sum.count() / count;
-    std::cout << "Average AES Encryption: " << avg_encode << " microseconds, with packet size: "<< ciphertext_len<< " and data length encrypted: "<< packetDimension<<  std::endl;
-     if (file.is_open()) {
-        file << avg_encode << "," << ciphertext_len << "," << packetDimension << "\n";
-        file.close();
-        std::cout << "Data saved to encryption_data.csv" << std::endl;
-    } else {
-        std::cerr << "Error opening file!" << std::endl;
-    }
-    // Ciphertext printing
-    // std::cout << "Ciphertext: ";
-    //for (const auto& byte : ciphertext) {
-    //   std::cout << std::hex << std::setw(2) << std::setfill('0') << (int)byte;
-    // }
-    std::cout << std::endl;
-    cout<< " -----------------------------------------------------------"<<endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing fine crittografia AES" << buffer << std::endl;
-    cout<< "-----------------------------------------------------------"<<endl;
-   */
-
-
-
     long long count = 10;
     std::vector<uint8_t> key(16);  // AES-256, 16 per avere AES-128
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
     
-    std::cout << "-----------------------------------------------------------" << std::endl;
-    updateTime(buffer, sizeof(buffer));
-    std::cout << "Timing inizio crittografia AES " << buffer << std::endl;
-    std::cout << "-----------------------------------------------------------" << std::endl;
+    
 
     // Crea contesto
     EVP_CIPHER_CTX *ctx_enc = EVP_CIPHER_CTX_new();
@@ -198,6 +115,10 @@ void aes_encryption(int packetDimension) {
     // Inizializzazione crittografia
     EVP_EncryptInit_ex(ctx_enc, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
+    std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing inizio crittografia AES " << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
     // Ciclo per cifratura
     for (int i = 1; i <= count; i++) {
         auto time_start = chrono::high_resolution_clock::now();
@@ -214,7 +135,10 @@ void aes_encryption(int packetDimension) {
 
     // Inizializzazione decifratura
     EVP_DecryptInit_ex(ctx_dec, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
-
+    std::cout << "-----------------------------------------------------------" << std::endl;
+    updateTime(buffer, sizeof(buffer));
+    std::cout << "Timing inizio decifratura AES" << buffer << std::endl;
+    std::cout << "-----------------------------------------------------------" << std::endl;
     int decrypted_len;
     for (int i = 1; i <= count; i++) {
         auto time_start = chrono::high_resolution_clock::now();
@@ -236,7 +160,7 @@ void aes_encryption(int packetDimension) {
     // Scrivi dati su file
     std::ofstream file("encryption_data_aes.csv", std::ios::app);
     if (file.is_open()) {
-        file << avg_encode << "," << ciphertext_len << "," << packet.size()  << avg_decode << ","<< "\n";
+        file << avg_encode << "," << ciphertext_len << ","  << avg_decode << ","<< "\n";
         file.close();
         std::cout << "Data saved to encryption_data_aes.csv" << std::endl;
     } else {
@@ -1223,7 +1147,7 @@ void paillier_example_sum(int num_addends) {
 int main()
 {
 //Data preparation SECTION
-for (int i=512; i<=10000; i=i+10){
+for (int i=1; i<=512; i=i+253){
     size_t packet_size = 20;
     generate_random_data(i);
   
