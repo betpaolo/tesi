@@ -478,6 +478,7 @@ void ckks_encryption(SEALContext context, int dimension){
     auto secret_key = keygen.secret_key();
     PublicKey public_key;
     keygen.create_public_key(public_key);
+    cout << "dimensione chiave secret_key: " << secret_key.save_size() << "dimensione chiave public_key: " << public_key.save_size()<< endl; 
 
     RelinKeys relin_keys;
     GaloisKeys gal_keys;
@@ -504,6 +505,7 @@ void ckks_encryption(SEALContext context, int dimension){
         time_diff = chrono::duration_cast<chrono::microseconds>(time_end - time_start);
         cout << "Done [" << time_diff.count() << " microseconds]" << endl;
     }
+    cout << "dimensione chiave relkin " << relin_keys.save_size() << "dimensione chiave galois " << gal_keys.save_size()<< endl; 
 
     Encryptor encryptor(context, public_key);
     Decryptor decryptor(context, secret_key);
@@ -575,6 +577,7 @@ void ckks_encryption(SEALContext context, int dimension){
         ckks_encoder.encode(pod_vector, scale, plain);
         time_end = chrono::high_resolution_clock::now();
         time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        
         /*
         [Encryption]
         */
@@ -716,7 +719,7 @@ std::cout << "-----------------------------------------------------------" << st
 void ckks_variance(SEALContext context)
 {
    
-    chrono::high_resolution_clock::time_point time_start, time_end;
+    chrono::high_resolution_clock::time_point time_start, time_end, time_start_variance, time_end_variance;
 
     //print_parameters(context);
     //cout << endl;
@@ -780,6 +783,7 @@ void ckks_variance(SEALContext context)
     Evaluator evaluator(context);
     CKKSEncoder ckks_encoder(context);
 
+    chrono::microseconds time_variance(0);
     chrono::microseconds time_encode_sum(0);
     chrono::microseconds time_decode_sum(0);
     chrono::microseconds time_encrypt_sum(0);
@@ -803,8 +807,8 @@ void ckks_variance(SEALContext context)
     /*
     How many times to run the test?
     */
-    long long count = 1;
-
+    long long count = 10;
+    for (int i=1; i<=count; i++){
     /*
     Populate a vector of floating-point values to batch.
     */
@@ -838,12 +842,12 @@ void ckks_variance(SEALContext context)
     }
     cout<<"slot usati: "<<slot<<endl;
        // Print the data
-    cout << "data: ";
-    for (double val : pod_vector)
-    {
-        cout << val << " ";
-    }
-    cout<<endl;
+   // cout << "data: ";
+    //for (double val : pod_vector)
+    //{
+     //   cout << val << " ";
+    //}
+    //cout<<endl;
 
     
    // for (long long i = 0; i < count; i++)
@@ -874,7 +878,7 @@ void ckks_variance(SEALContext context)
         /*
         [Add]
         */
-      
+      time_start_variance = chrono::high_resolution_clock::now();
         Ciphertext SumC = encrypted;
         Ciphertext encrypted2 = encrypted;
         time_start = chrono::high_resolution_clock::now();
@@ -884,7 +888,7 @@ void ckks_variance(SEALContext context)
         evaluator.add_inplace(SumC, encrypted);
         rotation++;
         }
-      cout<<"rotazioni: "<< rotation<<endl;
+      //cout<<"rotazioni: "<< rotation<<endl;
         //MEDIA
         Plaintext plainAverage;
         Plaintext plainAveragePos;
@@ -899,14 +903,14 @@ void ckks_variance(SEALContext context)
     
     Plaintext plainAverageN(poly_modulus_degree, 0);
        decryptor.decrypt(AverageNegated, plainAverageN);
-        vector<double> pod_vector4(ckks_encoder.slot_count());
-        ckks_encoder.decode(plainAverageN, pod_vector4); 
-        cout << "Average: ";
-        for (int i = 0; i <= householders-1; i++){
-                cout << pod_vector4[i]<< " ";
-        
-            }
-
+        //vector<double> pod_vector4(ckks_encoder.slot_count());
+        //ckks_encoder.decode(plainAverageN, pod_vector4); 
+        //cout << "Average: ";
+        //for (int i = 0; i <= householders-1; i++){
+        //        cout << pod_vector4[i]<< " ";
+        //
+        //    }
+//
         Ciphertext CSubstracted;
         
         AverageNegated.scale()=pow(2.0, scaleFactor);
@@ -918,28 +922,28 @@ void ckks_variance(SEALContext context)
 
         Plaintext plainSquared(poly_modulus_degree, 0);
         decryptor.decrypt(squared, plainSquared);
-        vector<double> pod_vectorSquared(ckks_encoder.slot_count());
-        ckks_encoder.decode(plainSquared, pod_vectorSquared); 
+        //vector<double> pod_vectorSquared(ckks_encoder.slot_count());
+        //ckks_encoder.decode(plainSquared, pod_vectorSquared); 
         
-        cout << "pod_vectorSquared: ";
-        for (int i = 0; i <= householders-1; i++){
-                cout << pod_vectorSquared[i]<< " ";
-        
-            }
+        //cout << "pod_vectorSquared: ";
+        //for (int i = 0; i <= householders-1; i++){
+       //         cout << pod_vectorSquared[i]<< " ";
+        //
+        //    }
         evaluator.relinearize_inplace(squared, relin_keys);
         evaluator.rescale_to_next_inplace(squared);
         squared.scale()=pow(2.0, scaleFactor);
         Ciphertext SumSquared = squared;
  
-        Plaintext plain3(poly_modulus_degree, 0);
-        decryptor.decrypt(squared, plain3);
-        vector<double> pod_vector3(ckks_encoder.slot_count());
-        ckks_encoder.decode(plain3, pod_vector3); 
-        cout << "Squared: ";
-        for (int i = 0; i <= householders-1; i++){
-                cout << pod_vector3[i]<< " ";
-        
-            }
+        //Plaintext plain3(poly_modulus_degree, 0);
+        //decryptor.decrypt(squared, plain3);
+        //vector<double> pod_vector3(ckks_encoder.slot_count());
+        //ckks_encoder.decode(plain3, pod_vector3); 
+        //cout << "Squared: ";
+        //for (int i = 0; i <= householders-1; i++){
+        //        cout << pod_vector3[i]<< " ";
+        //
+        //    }
   
         for (int i=0; i<=ckks_encoder.slot_count()/fieldFactor-1; i++){
         evaluator.rotate_vector_inplace(squared, fieldFactor, gal_keys);
@@ -951,7 +955,7 @@ void ckks_variance(SEALContext context)
         encryptor.encrypt(plainAveragePos, AveragePos);
         evaluator.multiply_inplace(SumSquared, AveragePos);
         evaluator.relinearize_inplace(SumSquared, relin_keys);
-
+        time_end_variance = chrono::high_resolution_clock::now();
         /*
         [Decryption]
         */
@@ -973,17 +977,18 @@ void ckks_variance(SEALContext context)
         time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);  
 
          // Print the decrypted data
+         /*
     cout << "Decrypted data: ";
 
     for (int i = 0; i <= householders-1; i=i+fieldFactor){
         cout << pod_vector2[i]<< " ";
   
     }
-
+*/
 
     // Calculate and print the error
-    double error = calculate_error(pod_vector, pod_vector2, fieldFactor);
-    cout << "Average error between original and decrypted data: " << error << endl;
+    // double error = calculate_error(pod_vector, pod_vector2, fieldFactor);
+  //  cout << "Average error between original and decrypted data: " << error << endl;
         /*
         [Serialize Ciphertext]
         */
@@ -1017,12 +1022,10 @@ void ckks_variance(SEALContext context)
         time_end = chrono::high_resolution_clock::now();
         time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 #endif
-        
+         time_variance += chrono::duration_cast<chrono::microseconds>(time_end_variance - time_start_variance);
+     }
     
-
-    cout << " Done" << endl << endl;
-    cout.flush();
-
+    auto time_operation = time_variance.count()/count;
     auto avg_encode = time_encode_sum.count() / count;
     auto avg_decode = time_decode_sum.count() / count;
     auto avg_encrypt = time_encrypt_sum.count() / count;
@@ -1043,6 +1046,12 @@ void ckks_variance(SEALContext context)
 #ifdef SEAL_USE_ZSTD
     auto avg_serialize_zstd = time_serialize_zstd_sum.count() / count;
 #endif
+auto avg_tot_encrypt=avg_encode+avg_encrypt+avg_serialize_zstd;
+auto avg_tot_decrypt=avg_decode+avg_decrypt;
+
+    cout<<"Average encrypt operation"<<avg_tot_encrypt<<endl;
+    cout<<"Average encrypt operation"<<avg_tot_decrypt<<endl;
+
     cout << "Average encode: " << avg_encode << " microseconds" << endl;
     cout << "Average decode: " << avg_decode << " microseconds" << endl;
     cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
@@ -1066,6 +1075,8 @@ void ckks_variance(SEALContext context)
 #ifdef SEAL_USE_ZSTD
     cout << "Average compressed (Zstandard) serialize ciphertext: " << avg_serialize_zstd << " microseconds" << endl;
 #endif
+
+    cout<<"Time operation: "<< time_operation <<" microseconds"<< endl;
     cout.flush();
 }
 
@@ -1164,10 +1175,63 @@ void paillier_example_sum(int num_addends) {
     paillier_freeplaintext(decrypted_sum);
     paillier_freeciphertext(sum_ciphertext);
 }
+
+
+void generate_ckks_key_sizes(const std::string &filename) {
+    // Apri il file per salvare le dimensioni delle chiavi
+    std::ofstream outfile(filename);
+    if (!outfile.is_open()) {
+        std::cerr << "Error opening file." << std::endl;
+        return;
+    }
+
+    // Intestazione del file CSV
+    outfile << "Polynomial Degree,Public Key (bytes),Secret Key (bytes),Relinearization Key (bytes),Galois Key (bytes)\n";
+
+
+    // Partiamo dal grado 1024 e raddoppiamo fino a 32768
+    for (size_t poly_degree = 1024; poly_degree <= 32768; poly_degree *= 2) {
+        // Configura i parametri del contesto CKKS con SEAL
+        seal::EncryptionParameters params(scheme_type::ckks);
+        params.set_poly_modulus_degree(poly_degree);
+        params.set_coeff_modulus(CoeffModulus::BFVDefault(poly_degree)); 
+
+        // Inizializza il contesto
+//        auto context = SEALContext::Create(params);
+        SEALContext context(params);
+        RelinKeys relin_keys;
+    	GaloisKeys gal_keys;
+ 	
+    	PublicKey public_key;
+   
+        // Genera le chiavi
+        KeyGenerator keygen(context);
+         keygen.create_public_key(public_key);
+      	 auto secret_key = keygen.secret_key();
+  if (context.using_keyswitching()){
+         keygen.create_relin_keys(relin_keys);
+        keygen.create_galois_keys(gal_keys);
+}
+        // Scrivi le dimensioni delle chiavi nel file
+        outfile << poly_degree << ","
+                << public_key.save_size(seal::compr_mode_type::none) << ","
+                << secret_key.save_size(seal::compr_mode_type::none) << ","
+                << relin_keys.save_size(seal::compr_mode_type::none) << ","
+                << gal_keys.save_size(seal::compr_mode_type::none) << "\n";
+
+        std::cout << "Processed polynomial degree: " << poly_degree << std::endl;
+    }
+
+    // Chiudi il file
+    outfile.close();
+    std::cout << "Key sizes saved to " << filename << std::endl;
+}
+
+
 int main()
 {
 //Data preparation SECTION
-for (int i=1; i<=512; i=i+253){
+for (int i=1; i<=2; i++){
     size_t packet_size = 20;
     generate_random_data(i);
   
@@ -1180,15 +1244,18 @@ for (int i=1; i<=512; i=i+253){
 //ENCRYTPION SECTION
 //AES ENCRYPTION
 
-    aes_encryption(i);
+    //aes_encryption(i);
     EncryptionParameters parms(scheme_type::ckks);
-    size_t poly_modulus_degree1= 1024;
+    size_t poly_modulus_degree1= 8192;
+
     parms.set_poly_modulus_degree(poly_modulus_degree1);
-    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree1, seal::sec_level_type::tc128));
+    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree1, {60,29,29,60}));
+
+    //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree1, seal::sec_level_type::tc128));
     //CKKS ENCRYPTION
 
     
-  ckks_encryption(parms, i);
+  //  ckks_encryption(parms, i);
 
 
 
@@ -1219,7 +1286,7 @@ parmsScenario1.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degreeSce
     
     //parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {40, 20, 20, 29}));
     //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    //ckks_variance(parms2);
+    ckks_variance(parms2);
 
-    
+    //generate_ckks_key_sizes("ckks_key_sizes.csv");
 }
