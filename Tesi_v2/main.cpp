@@ -1227,6 +1227,38 @@ void generate_ckks_key_sizes(const std::string &filename) {
     std::cout << "Key sizes saved to " << filename << std::endl;
 }
 
+double calculateVariance(const std::vector<double>& data, int iterations) {
+    double totalTime = 0.0;
+    double variance = 0.0;
+
+    for (int iter = 0; iter < iterations; ++iter) {
+        auto start = std::chrono::high_resolution_clock::now();
+
+        // Calcola la media
+        double sum = 0.0;
+        for (double value : data) {
+            sum += value;
+        }
+        double mean = sum / data.size();
+
+        // Calcola la varianza
+        variance = 0.0;
+        for (double value : data) {
+            variance += (value - mean) * (value - mean);
+        }
+        variance /= data.size();
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        totalTime += elapsed.count();
+    }
+
+    // Calcola il tempo medio
+    double averageTime = totalTime / iterations;
+    std::cout << "Average time taken for variance calculation over " << iterations << " iterations: " << averageTime << " ms" << std::endl;
+
+    return variance;
+}
 
 int main()
 {
@@ -1286,7 +1318,19 @@ parmsScenario1.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degreeSce
     
     //parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {40, 20, 20, 29}));
     //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    ckks_variance(parms2);
+    //ckks_variance(parms2);
 
     //generate_ckks_key_sizes("ckks_key_sizes.csv");
+
+    //Calcolo varianza in locale
+     // Crea il vettore con elementi dati da 0.005 + i * 0.005
+    std::vector<double> data;
+    int n = 4096;
+    for (int i = 0; i < n; ++i) {
+        data.push_back(0.0005 + i * 0.0005);
+    }
+
+   // Calcola la varianza e misura il tempo
+    double variance = calculateVariance(data, 10);
+    std::cout << "Variance: " << variance << std::endl;
 }
