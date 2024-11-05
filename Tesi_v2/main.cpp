@@ -91,8 +91,8 @@ void elGamal() {
 
 void aes_encryption(int packetDimension) {
   
-    long long count = 10;
-    std::vector<uint8_t> key(16);  // AES-256, 16 per avere AES-128
+    long long count = 100;
+    std::vector<uint8_t> key(16);  // 32 per AES-256, 16 per avere AES-128
     std::vector<uint8_t> iv(16);   // IV
     std::generate(key.begin(), key.end(), [](){ return rand() % 256; });
     std::generate(iv.begin(), iv.end(), [](){ return rand() % 256; });
@@ -158,9 +158,9 @@ void aes_encryption(int packetDimension) {
     std::cout << "Average AES Decryption: " << avg_decode << " microseconds" << std::endl;
 
     // Scrivi dati su file
-    std::ofstream file("encryption_data_aes.csv", std::ios::app);
+    std::ofstream file("encryption_data_aes_2.csv", std::ios::app);
     if (file.is_open()) {
-        file << avg_encode << "," << ciphertext_len << ","  << avg_decode << ","<< "\n";
+        file << avg_encode << "," << ciphertext_len << "," << avg_decode << ","<< "\n";
         file.close();
         std::cout << "Data saved to encryption_data_aes.csv" << std::endl;
     } else {
@@ -460,10 +460,10 @@ double calculate_error(const vector<double>& original, const vector<double>& dec
     return error_sum / original.size(); // Return the average error
 } 
 
-void ckks_encryption(SEALContext context, int dimension){
+void ckks_encryption(size_t grado, SEALContext context, int dimension){
     
  chrono::high_resolution_clock::time_point time_start, time_end;
- std::ofstream file("encryption_data_ckks.csv", std::ios::app); // Usa 'app' per aggiungere righe
+ std::ofstream file("encryption_data_ckks_variazione_poly.csv", std::ios::app); // Usa 'app' per aggiungere righe
 
     //print_parameters(context);
     cout << "byte: "<< dimension<< endl;
@@ -706,7 +706,7 @@ std::cout << "-----------------------------------------------------------" << st
     auto totTimeDecryption = avg_decode+avg_decrypt;
    if (file.is_open()) {
         //file << totTimeEncryption  << "," << buf_sizeNone << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
-        file << totTimeEncryption   << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
+        file << grado << "," << totTimeEncryption   << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
 
         file.close();
         std::cout << "Data saved to encryption_dataCkks.csv" << std::endl;
@@ -1205,12 +1205,12 @@ void generate_ckks_key_sizes(const std::string &filename) {
     	PublicKey public_key;
    
         // Genera le chiavi
-        KeyGenerator keygen(context);
+         KeyGenerator keygen(context);
          keygen.create_public_key(public_key);
       	 auto secret_key = keygen.secret_key();
   if (context.using_keyswitching()){
          keygen.create_relin_keys(relin_keys);
-        keygen.create_galois_keys(gal_keys);
+         keygen.create_galois_keys(gal_keys);
 }
         // Scrivi le dimensioni delle chiavi nel file
         outfile << poly_degree << ","
@@ -1263,42 +1263,48 @@ double calculateVariance(const std::vector<double>& data, int iterations) {
 int main()
 {
 //Data preparation SECTION
-for (int i=1; i<=2; i++){
+size_t poly_modulus_degree = 1024;
+
+for (int i = 1; i <= 255; i++) {
     size_t packet_size = 20;
     generate_random_data(i);
-  
+    
+    // Stampa dati generati per debug
     /*
     for (const auto& num : data_double) {
-        std::cout << num << " ";  // Cast per stampare come interi
+        std::cout << num << " ";
     }
-    std::cout << std::endl;*/
-    
-//ENCRYTPION SECTION
-//AES ENCRYPTION
+    std::cout << std::endl;
+    */
 
-    //aes_encryption(i);
+    // ENCRYPTION SECTION
+    // AES ENCRYPTION
+    aes_encryption(i);
+
+    // CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
-    size_t poly_modulus_degree1= 8192;
-
-    parms.set_poly_modulus_degree(poly_modulus_degree1);
-    parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree1, {60,29,29,60}));
-
-    //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree1, seal::sec_level_type::tc128));
-    //CKKS ENCRYPTION
-
     
-  //  ckks_encryption(parms, i);
 
+    // Controlla se `i` ha raggiunto metà del grado del polinomio e raddoppia se necessario
+    if (i > poly_modulus_degree / 2) {
+        poly_modulus_degree *= 2;
+        if (poly_modulus_degree > 16384) {
+            poly_modulus_degree = 16384; // Limite massimo per il grado del polinomio
+        }
+    }
 
+    parms.set_poly_modulus_degree(poly_modulus_degree);
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree, seal::sec_level_type::tc256));
 
-//EL Gamal Encryption
+    // CKKS Encryption con parametri aggiornati
+    ckks_encryption(poly_modulus_degree, parms, i);
 
-    //elGamal();
+    // EL Gamal Encryption
+    // elGamal();
 
-//Paillier Encryption
-
-   // paillier();
-  // paillier_example_sum(i);
+    // Paillier Encryption
+    // paillier();
+    // paillier_example_sum(i);
 }
 
 //SCENARIO I - CKKS - PAILLIER
@@ -1320,7 +1326,7 @@ parmsScenario1.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degreeSce
     //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
     //ckks_variance(parms2);
 
-    //generate_ckks_key_sizes("ckks_key_sizes.csv");
+    generate_ckks_key_sizes("ckks_key_sizes.csv");
 
     //Calcolo varianza in locale
      // Crea il vettore con elementi dati da 0.005 + i * 0.005
