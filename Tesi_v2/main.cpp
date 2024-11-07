@@ -286,8 +286,6 @@ void paillier() {
 // Function to calculate the error between original and decrypted vectors used at the beginning to check the basic operations
 double calculate_error(const vector<double>& original, const vector<double>& decrypted, int fieldFactor)
 {
-
-
     if (original.size() != decrypted.size())
     {
         cout << "Original Dimension " <<original.size()<< "encrypted dimension" << decrypted.size() << endl;
@@ -307,7 +305,7 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
     
  chrono::high_resolution_clock::time_point time_start, time_end;
  //Open the file
- std::ofstream file("encryption_data_ckks_variazione_poly.csv", std::ios::app); 
+ std::ofstream file("encryption_data_ckks_zstd_zlib.csv", std::ios::app); 
 
     //print_parameters(context);
     cout << "byte: "<< dimension<< endl;
@@ -514,7 +512,7 @@ std::cout << "-----------------------------------------------------------" << st
     auto totTimeEncryption = avg_encode+avg_encrypt+avg_serialize;
     auto totTimeDecryption = avg_decode+avg_decrypt;
    if (file.is_open()) {
-        file << grado << "," << totTimeEncryption   << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
+        file << grado << "," << totTimeEncryption   << ","<< avg_serialize_zlib << "," << avg_serialize_zstd << ","  << dimension << "," <<totTimeDecryption<< "\n";
         file.close();
         std::cout << "Data saved to encryption_dataCkks.csv" << std::endl;
     } else {
@@ -1008,12 +1006,11 @@ size_t poly_modulus_degree = 1024;
 
 for (int i = 1; i <= 255; i++) {
 
-    size_t packet_size = 20;
-    generate_random_data(i);
+    //generate_random_data(i);
 
     // ENCRYPTION SECTION
     // AES ENCRYPTION
-    aes_encryption(i);
+    //aes_encryption(i);
 
     // CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
@@ -1025,7 +1022,7 @@ for (int i = 1; i <= 255; i++) {
     }
 
     parms.set_poly_modulus_degree(poly_modulus_degree);
-    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree, seal::sec_level_type::tc256));
+    parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree, seal::sec_level_type::tc128));
 
     ckks_encryption(poly_modulus_degree, parms, i);
 
@@ -1035,10 +1032,10 @@ for (int i = 1; i <= 255; i++) {
 //Alternative Scheme evaluation
 
     //El Gamal Encryption
-    elGamal();
+    //elGamal();
 
     // Paillier Encryption
-     paillier();
+    // paillier();
 
 //encryption_ckks_paillier(parmsScenario1);
 
