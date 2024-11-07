@@ -380,6 +380,7 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
     size_t buf_sizeNone;
     size_t buf_sizeZLIB;
     size_t buf_sizeZstandard;
+
     for (size_t i = 0; i < dimension && i < ckks_encoder.slot_count(); i++)
     {
         pod_vector.push_back(1.001 * static_cast<double>(i));
@@ -400,8 +401,6 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
     {
         /*
         [Encoding]
-        For scale we use the square root of the last coeff_modulus prime
-        from parms.
         */
         Plaintext plain(parms.poly_modulus_degree() * parms.coeff_modulus().size(), 0);
         /*
@@ -421,6 +420,38 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
         encryptor.encrypt(plain, encrypted);
         time_end = chrono::high_resolution_clock::now();
         time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+
+        /*
+        [Serialize Ciphertext]
+        */
+        buf_sizeNone = static_cast<size_t>(encrypted.save_size(compr_mode_type::none));
+        vector<seal_byte> buf(buf_sizeNone);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeNone, compr_mode_type::none);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#ifdef SEAL_USE_ZLIB
+        /*
+        [Serialize Ciphertext (ZLIB)]
+        */
+        buf_sizeZLIB = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
+        buf.resize(buf_sizeZLIB);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeZLIB, compr_mode_type::zlib);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
+#ifdef SEAL_USE_ZSTD
+        /*
+        [Serialize Ciphertext (Zstandard)]
+        */
+        buf_sizeZstandard = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
+        buf.resize(buf_sizeZstandard);
+        time_start = chrono::high_resolution_clock::now();
+        encrypted.save(buf.data(), buf_sizeZstandard, compr_mode_type::zstd);
+        time_end = chrono::high_resolution_clock::now();
+        time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+#endif
     }
     std::cout << "-----------------------------------------------------------" << std::endl;
     updateTime(buffer, sizeof(buffer));
@@ -437,8 +468,6 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
         time_end = chrono::high_resolution_clock::now();
         time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
-        
-
         /*
         [Decryption]
         */
@@ -448,41 +477,7 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
         time_end = chrono::high_resolution_clock::now();
         time_decrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
 
-
-        /*
-        [Serialize Ciphertext]
-        */
-        size_t buf_sizeNone = static_cast<size_t>(encrypted.save_size(compr_mode_type::none));
-        vector<seal_byte> buf(buf_sizeNone);
-        time_start = chrono::high_resolution_clock::now();
-        encrypted.save(buf.data(), buf_sizeNone, compr_mode_type::none);
-        time_end = chrono::high_resolution_clock::now();
-        time_serialize_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#ifndef SEAL_USE_ZLIB
-        /*
-        [Serialize Ciphertext (ZLIB)]
-        */
-        buf_sizeZLIB = static_cast<size_t>(encrypted.save_size(compr_mode_type::zlib));
-        buf.resize(buf_sizeZLIB);
-        time_start = chrono::high_resolution_clock::now();
-        encrypted.save(buf.data(), buf_sizeZLIB, compr_mode_type::zlib);
-        time_end = chrono::high_resolution_clock::now();
-        time_serialize_zlib_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#endif
-#ifndef SEAL_USE_ZSTD
-        /*
-        [Serialize Ciphertext (Zstandard)]
-        */
-        buf_sizeZstandard = static_cast<size_t>(encrypted.save_size(compr_mode_type::zstd));
-        buf.resize(buf_sizeZstandard);
-        time_start = chrono::high_resolution_clock::now();
-        encrypted.save(buf.data(), buf_sizeZstandard, compr_mode_type::zstd);
-        time_end = chrono::high_resolution_clock::now();
-        time_serialize_zstd_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-#endif
-        /*
-        Print a dot to indicate progress.
-        */
+        
         cout << ".";
         cout.flush();
     }  
@@ -816,8 +811,7 @@ auto avg_tot_encrypt=avg_encode+avg_encrypt+avg_serialize_zstd;
 auto avg_tot_decrypt=avg_decode+avg_decrypt;
 
     cout<<"Average encrypt operation"<<avg_tot_encrypt<<endl;
-    cout<<"Average encrypt operation"<<avg_tot_decrypt<<endl;
-
+    cout<<"Average decrypt operation"<<avg_tot_decrypt<<endl;
     cout << "Average encode: " << avg_encode << " microseconds" << endl;
     cout << "Average decode: " << avg_decode << " microseconds" << endl;
     cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
