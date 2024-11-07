@@ -1,26 +1,41 @@
-% Specifica il percorso del file CSV
-filename = "C:\Users\betpa\Downloads\aesF.csv";  % Sostituisci con il percorso reale del tuo file
+clear all;
+clc;
+close all;
 
-% Importa il file CSV come matrice
+% CSV import
+%filename = "G:\My Drive\UNI\UniPD\Magistrale\Tesi\ckksPower.csv"; 
+filename="C:\Users\betpa\Desktop\aes0311.xlsx";
+%filename="C:\Users\betpa\Downloads\ckks (3).csv";
+
 data = readmatrix(filename);
 
-% Visualizza i dati importati
+% Visualizzazione dati
 disp(data);
 x = data(:,2)';
 y = data(:,3)';
+points = 1000;
 
-% Definisci i punti in cui vuoi interpolare il segnale
-xi = linspace(min(x), max(x), 4000);  % 100 punti equidistanti tra il minimo e il massimo di x
+xi = linspace(min(x), max(x), points); 
+tempo= max(x) - min(x);
+delta_t = (tempo/points)* 1e-6;
 
-% Calcola i valori interpolati utilizzando la spline cubica
+% Cubic spline
 yi = spline(x, y, xi);
-
-% Crea un grafico
-plot(x, y, 'o', 'MarkerSize', 8, 'DisplayName', 'Punti Campionati');  % Punti originali
+% Graph
+plot(x, y, 'o', 'MarkerSize', 8, 'DisplayName', 'Samples');  
 hold on;
-plot(xi, yi, '-', 'LineWidth', 2, 'DisplayName', 'Interpolazione Cubica');  % Linea interpolata
-title('Interpolazione Cubica con MATLAB');
-xlabel('Tempo');
-ylabel('Segnale');
+plot(xi, yi, '-', 'LineWidth', 2, 'DisplayName', 'Interpolation');  % Interpolation line
+title('Cubic Spline');
+xlabel('Time - ms');
+ylabel('Power - mW');
 legend;
 grid on;
+
+Energia = yi * delta_t; % Energia per interval
+Energia_totale = sum(Energia); 
+
+% Joule - mWh conversion
+Energia_totale_mWh_aes = Energia_totale / 3.6;
+disp(['Energia totale consumata: ', num2str(Energia_totale_mWh_aes), ' mWh']);
+
+
