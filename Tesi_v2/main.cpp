@@ -37,11 +37,10 @@ void updateTime(char* buffer, std::size_t bufferSize) {
 static std::vector<uint8_t> packet;
 std::vector<double> data_double;
 
+
+//El Gamal function used to evaluate the El Gamal packet dimension and the elaboration time
 void elGamal() {
-    
-   
-  
-        
+      
     using namespace CryptoPP;
     AutoSeededRandomPool rng;
     updateTime(buffer, sizeof(buffer));
@@ -62,7 +61,7 @@ void elGamal() {
     chrono::high_resolution_clock::time_point time_start, time_end;
     chrono::microseconds time_encode_sum(0);
     int count =10;
-     for (int i = 0; i < count; i++)
+    for (int i = 0; i < count; i++)
     {
     time_start = chrono::high_resolution_clock::now();
     ElGamalEncryptor encryptor(publicKey);
@@ -73,22 +72,20 @@ void elGamal() {
     }
     auto avg_encode = time_encode_sum.count() / count;
     std::cout << "Average El Gamal Encryption: " << avg_encode << "microseconds"<<  std::endl;
-   // std::string encoded;
-   // StringSource(cipherText.data(), cipherText.size(), true,
-   //  new HexEncoder(new StringSink(encoded)));
+    std::string encoded;
+    StringSource(cipherText.data(), cipherText.size(), true,   new HexEncoder(new StringSink(encoded)));
     std::cout << "Dimensione del messaggio cifrato: " << cipherText.size() << " byte" << std::endl;
     updateTime(buffer, sizeof(buffer));
     std::cout << "Fine Crittografia EL GAMAL" << buffer << std::endl;
     cout<< "-----------------------------------------------------------"<<endl;
     // Decryption
-    // std::vector<uint8_t> recoveredText;
-    // ElGamalDecryptor decryptor(privateKey);
-    //StringSource(cipherText.data(), cipherText.size(), true,
-    //  new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
+    //std::vector<uint8_t> recoveredText;
+    //ElGamalDecryptor decryptor(privateKey);
+    //StringSource(cipherText.data(), cipherText.size(), true, new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
 
 }
 
-
+//AES function used to elaborate and analyze the AES encryption and decryption time and packet dimension
 void aes_encryption(int packetDimension) {
   
     long long count = 100;
@@ -103,7 +100,7 @@ void aes_encryption(int packetDimension) {
     EVP_CIPHER_CTX *ctx_enc = EVP_CIPHER_CTX_new();
     EVP_CIPHER_CTX *ctx_dec = EVP_CIPHER_CTX_new();
     if (!ctx_enc || !ctx_dec) {
-        throw std::runtime_error("Errore nella creazione del contesto");
+        throw std::runtime_error("Error in context creation");
     }
 
     std::vector<uint8_t> ciphertext(packet.size() + EVP_MAX_BLOCK_LENGTH);
@@ -112,7 +109,7 @@ void aes_encryption(int packetDimension) {
     int len, ciphertext_len;
     chrono::microseconds time_encode_sum(0), time_decode_sum(0);
     
-    // Inizializzazione crittografia
+    // Init cryptografy
     EVP_EncryptInit_ex(ctx_enc, EVP_aes_128_cbc(), nullptr, key.data(), iv.data());
 
     std::cout << "-----------------------------------------------------------" << std::endl;
@@ -167,7 +164,7 @@ void aes_encryption(int packetDimension) {
         std::cerr << "Error opening file!" << std::endl;
     }
 
-    // Libera la memoria dei contesti
+    // Freeing memory
     EVP_CIPHER_CTX_free(ctx_enc);
     EVP_CIPHER_CTX_free(ctx_dec);
 
@@ -177,20 +174,14 @@ void aes_encryption(int packetDimension) {
 }
 
 void generate_random_data(size_t size) {
-    packet.resize(size);  // Assicurati che il vettore abbia una dimensione definita
+    packet.resize(size);  
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0, 20);
     std::generate(packet.begin(), packet.end(), [&]() {
-        return static_cast<uint8_t>(dis(gen)); // Converti il valore in uint8_t
+        return static_cast<uint8_t>(dis(gen)); 
     });
     
-    // Stampa i dati generati
-    //std::cout << "Generated Plaintext:" << std::endl;
-    // for (const auto& num : packet) {
-    //    std::cout << static_cast<int>(num) << " ";  // Cast per stampare come interi
-    //}
-    std::cout << std::endl;
 }
 
 paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uint8_t>& packet) {
@@ -203,77 +194,6 @@ paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uin
     
     return plaintext; 
 }
-/*
-void  paillier() {
-    paillier_plaintext_t* plaintext = convert_vector_to_paillier_plaintext(packet);
-    int modulus_bits = 3072;
-    paillier_pubkey_t *pubkey;
-    paillier_prvkey_t *privkey;
-    updateTime(buffer, sizeof(buffer));
-    //cout<< "-----------------------------------------------------------"<<endl;
-    //std::cout << "Inizio Generazione chiavi Pallier" << buffer << std::endl;
-   // cout<< "-----------------------------------------------------------"<<endl;
-    // Generate keys
-    paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
-    updateTime(buffer, sizeof(buffer));
-    //cout<< "-----------------------------------------------------------"<<endl;
-    //std::cout << "Fine Ch//iavi PALLIER" << buffer << std::endl;
-    //cout<< "-----------------------------------------------------------"<<endl;
-    // Output the size of the public key modulus (N) in bytes
-    size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Size in bits
-    printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
-    chrono::high_resolution_clock::time_point time_start, time_end;
-    chrono::microseconds time_encode_sum(0);
-    chrono::microseconds time_decode_sum(0);
-    int count =10;
-    paillier_ciphertext_t *ciphertext;
-    
-    for (int i = 0; i < count; i++)
-    {
-    time_start = chrono::high_resolution_clock::now();
-    // Encrypt the plaintext
-    ciphertext = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
-    time_end = chrono::high_resolution_clock::now();
-    time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-    }
-    auto avg_encode = time_encode_sum.count() / count;
-    std::cout << "Average paillier Encryption: " << avg_encode << "microseconds"<<  std::endl;
-
-
-    // Output the size of the ciphertext
-    size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext->c, 2); // Size in bits
-    printf("Ciphertext Size: %zu bits, %zu bytes\n", ciphertext_size, (ciphertext_size + 7) / 8);
-    updateTime(buffer, sizeof(buffer));
-    //cout<< "-----------------------------------------------------------"<<endl;
-    //std::cout << "Fine Crittografia Pallier" << buffer << std::endl;
-    //cout<< "-----------------------------------------------------------"<<endl;
-paillier_plaintext_t *decrypted;
-    for (int i = 0; i < count; i++) {
-    // Decrypt the ciphertext
-    time_start = chrono::high_resolution_clock::now();
-    decrypted = paillier_dec(NULL, pubkey, privkey, ciphertext);
-    time_end = chrono::high_resolution_clock::now();
-    time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-}
-
-auto avg_decode = time_decode_sum.count() / count;
-std::cout << "Average Paillier Decryption: " << avg_decode << " microseconds" << std::endl;
-
-// Output the size of the decrypted plaintext
-size_t plaintext_size = (size_t)mpz_sizeinbase(decrypted->m, 2); // Size in bits
-printf("Decrypted Plaintext Size: %zu bits, %zu bytes\n", plaintext_size, (plaintext_size + 7) / 8);
-
-// Optionally compare the original and decrypted plaintexts
-if (mpz_cmp(plaintext->m, decrypted->m) == 0) {
-    std::cout << "Decryption successful, plaintext matches original." << std::endl;
-} else {
-    std::cout << "Error in decryption, plaintext does not match original." << std::endl;
-}
-        
-} 
- 
-*/
-
 
 void paillier() {
 
@@ -283,7 +203,7 @@ void paillier() {
     paillier_prvkey_t *privkey;
     updateTime(buffer, sizeof(buffer));
 
-    // Generazione delle chiavi
+    // Key Generation
     paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
     updateTime(buffer, sizeof(buffer));
 
@@ -297,7 +217,7 @@ void paillier() {
 
     paillier_ciphertext_t *ciphertext1, *ciphertext2, *sum_ciphertext;
 
-    // Encryption del primo plaintext
+    // Encryption 
     for (int i = 0; i < count; i++) {
         time_start = chrono::high_resolution_clock::now();
         ciphertext1 = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
@@ -310,22 +230,22 @@ void paillier() {
     size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext1->c, 2); // Dimensione in bit
     printf("Ciphertext Size: %zu bits, %zu bytes\n", ciphertext_size, (ciphertext_size + 7) / 8);
 
-    // Creazione di un secondo plaintext
+    //Second plaintext
     paillier_plaintext_t* plaintext2 = convert_vector_to_paillier_plaintext(packet);
 
-    // Somma dei plaintext
+    //Plaintext sum
     paillier_plaintext_t* expected_sum = (paillier_plaintext_t*)malloc(sizeof(paillier_plaintext_t));
     mpz_init(expected_sum->m);
     mpz_add(expected_sum->m, plaintext->m, plaintext2->m);
 
-    // Encryption del secondo plaintext
+    // Encryption second plaintext
     ciphertext2 = paillier_enc(NULL, pubkey, plaintext2, paillier_get_rand_devurandom);
 
-    // Somma dei ciphertext
+    // Ciphertext sum
     sum_ciphertext = paillier_create_enc_zero();
     paillier_mul(pubkey, sum_ciphertext, ciphertext1, ciphertext2);
 
-    // Decifratura della somma
+    // Sum decryption
     paillier_plaintext_t *decrypted_sum;
     for (int i = 0; i < count; i++) {
         time_start = chrono::high_resolution_clock::now();
@@ -336,19 +256,19 @@ void paillier() {
     auto avg_decode = time_decode_sum.count() / count;
     std::cout << "Average Paillier Decryption: " << avg_decode << " microseconds" << std::endl;
 
-    // Confronto e stampa del risultato della somma
+    // Comparison and printing of the sum
     if (mpz_cmp(decrypted_sum->m, expected_sum->m) == 0) {
         std::cout << "Sum operation verified successfully: decrypted_sum matches expected_sum." << std::endl;
     } else {
         std::cerr << "Sum operation failed: decrypted_sum does not match expected_sum." << std::endl;
     }
 
-    // Stampa del risultato della somma
+    // Printing sum
     char* decrypted_sum_str = mpz_get_str(NULL, 10, decrypted_sum->m);
     std::cout << "Decrypted sum: " << decrypted_sum_str << std::endl;
-    free(decrypted_sum_str); // Libera la stringa allocata
+    free(decrypted_sum_str); 
 
-    // Libera la memoria
+    // Freeing memory
     paillier_freepubkey(pubkey);
     paillier_freeprvkey(privkey);
     paillier_freeplaintext(plaintext);
@@ -358,96 +278,19 @@ void paillier() {
     paillier_freeciphertext(ciphertext1);
     paillier_freeciphertext(ciphertext2);
     paillier_freeciphertext(sum_ciphertext);
-    /*
-    // Converte il vettore in un plaintext per l'encryption
-    paillier_plaintext_t* plaintext = convert_vector_to_paillier_plaintext(packet);
-    int modulus_bits = 3072;
-    paillier_pubkey_t *pubkey;
-    paillier_prvkey_t *privkey;
-    updateTime(buffer, sizeof(buffer));
-
-    // Generazione chiavi
-    paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
-    updateTime(buffer, sizeof(buffer));
-
-    // Stampa la dimensione della chiave pubblica
-    size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Dimensione in bit
-    printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
-
-    chrono::high_resolution_clock::time_point time_start, time_end;
-    chrono::microseconds time_encode_sum(0);
-    chrono::microseconds time_decode_sum(0);
-    int count = 10;
-
-    paillier_ciphertext_t *ciphertext1, *ciphertext2, *sum_ciphertext;
-
-    // Encryption del primo plaintext
-    for (int i = 0; i < count; i++) {
-        time_start = chrono::high_resolution_clock::now();
-        ciphertext1 = paillier_enc(NULL, pubkey, plaintext, paillier_get_rand_devurandom);
-        time_end = chrono::high_resolution_clock::now();
-        time_encode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-    }
-    auto avg_encode = time_encode_sum.count() / count;
-    std::cout << "Average Paillier Encryption: " << avg_encode << " microseconds" << std::endl;
-
-    // Stampa la dimensione del ciphertext
-    size_t ciphertext_size = (size_t)mpz_sizeinbase(ciphertext1->c, 2); // Dimensione in bit
-    printf("Ciphertext Size: %zu bits, %zu bytes\n", ciphertext_size, (ciphertext_size + 7) / 8);
-
-    // Crea un secondo plaintext (identico o diverso, a seconda dei dati che vuoi usare per test)
-    paillier_plaintext_t* plaintext2 = convert_vector_to_paillier_plaintext(packet); // Usa un secondo packet se diverso
-
-    // Calcola la somma dei plaintext originali per confronto
-    paillier_plaintext_t *expected_sum = paillier_plaintext_add(pubkey, plaintext, plaintext2);
-
-    // Encryption del secondo plaintext
-    ciphertext2 = paillier_enc(NULL, pubkey, plaintext2, paillier_get_rand_devurandom);
-
-    // Somma (operazione di moltiplicazione Paillier tra ciphertext1 e ciphertext2)
-    sum_ciphertext = paillier_create_enc_zero();  // Crea un ciphertext per la somma
-    paillier_mul(pubkey, sum_ciphertext, ciphertext1, ciphertext2);
-
-    // Decifratura della somma
-    paillier_plaintext_t *decrypted_sum;
-    for (int i = 0; i < count; i++) {
-        time_start = chrono::high_resolution_clock::now();
-        decrypted_sum = paillier_dec(NULL, pubkey, privkey, sum_ciphertext);
-        time_end = chrono::high_resolution_clock::now();
-        time_decode_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-    }
-    auto avg_decode = time_decode_sum.count() / count;
-    std::cout << "Average Paillier Decryption: " << avg_decode << " microseconds" << std::endl;
-
-    // Confronta il risultato decifrato con la somma attesa
-    if (mpz_cmp(decrypted_sum->m, expected_sum->m) == 0) {
-        std::cout << "Sum operation verified successfully: decrypted_sum matches expected_sum." << std::endl;
-    } else {
-        std::cerr << "Sum operation failed: decrypted_sum does not match expected_sum." << std::endl;
-    }
-
-    // Libera la memoria
-    paillier_freepubkey(pubkey);
-    paillier_freeprvkey(privkey);
-    paillier_freeplaintext(plaintext);
-    paillier_freeplaintext(plaintext2);
-    paillier_freeplaintext(decrypted_sum);
-    paillier_freeplaintext(expected_sum);
-    paillier_freeciphertext(ciphertext1);
-    paillier_freeciphertext(ciphertext2);
-    paillier_freeciphertext(sum_ciphertext);*/
+    
 }
 
 
 
-// Function to calculate the error between original and decrypted vectors
+// Function to calculate the error between original and decrypted vectors used at the beginning to check the basic operations
 double calculate_error(const vector<double>& original, const vector<double>& decrypted, int fieldFactor)
 {
 
 
     if (original.size() != decrypted.size())
     {
-        cout << "dimensioni original " <<original.size()<< "dimensioni decriptato " << decrypted.size() << endl;
+        cout << "Original Dimension " <<original.size()<< "encrypted dimension" << decrypted.size() << endl;
         throw invalid_argument("Vectors must have the same size");
     }
 
@@ -463,7 +306,8 @@ double calculate_error(const vector<double>& original, const vector<double>& dec
 void ckks_encryption(size_t grado, SEALContext context, int dimension){
     
  chrono::high_resolution_clock::time_point time_start, time_end;
- std::ofstream file("encryption_data_ckks_variazione_poly.csv", std::ios::app); // Usa 'app' per aggiungere righe
+ //Open the file
+ std::ofstream file("encryption_data_ckks_variazione_poly.csv", std::ios::app); 
 
     //print_parameters(context);
     cout << "byte: "<< dimension<< endl;
@@ -478,7 +322,7 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
     auto secret_key = keygen.secret_key();
     PublicKey public_key;
     keygen.create_public_key(public_key);
-    cout << "dimensione chiave secret_key: " << secret_key.save_size() << "dimensione chiave public_key: " << public_key.save_size()<< endl; 
+    cout << "secret_key dimension: " << secret_key.save_size() << "public_key dimension: " << public_key.save_size()<< endl; 
 
     RelinKeys relin_keys;
     GaloisKeys gal_keys;
@@ -516,15 +360,6 @@ void ckks_encryption(size_t grado, SEALContext context, int dimension){
     chrono::microseconds time_decode_sum(0);
     chrono::microseconds time_encrypt_sum(0);
     chrono::microseconds time_decrypt_sum(0);
-    chrono::microseconds time_add_sum(0);
-    chrono::microseconds time_multiply_sum(0);
-    chrono::microseconds time_multiply_plain_sum(0);
-    chrono::microseconds time_square_sum(0);
-    chrono::microseconds time_relinearize_sum(0);
-    chrono::microseconds time_rescale_sum(0);
-    chrono::microseconds time_rotate_one_step_sum(0);
-    chrono::microseconds time_rotate_random_sum(0);
-    chrono::microseconds time_conjugate_sum(0);
     chrono::microseconds time_serialize_sum(0);
 #ifdef SEAL_USE_ZLIB
     chrono::microseconds time_serialize_zlib_sum(0);
@@ -662,15 +497,6 @@ std::cout << "-----------------------------------------------------------" << st
     auto avg_decode = time_decode_sum.count() / count;
     auto avg_encrypt = time_encrypt_sum.count() / count;
     auto avg_decrypt = time_decrypt_sum.count() / count;
-    auto avg_add = time_add_sum.count() / (3 * count);
-    auto avg_multiply = time_multiply_sum.count() / count;
-    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
-    auto avg_square = time_square_sum.count() / count;
-    auto avg_relinearize = time_relinearize_sum.count() / count;
-    auto avg_rescale = time_rescale_sum.count() / count;
-    auto avg_rotate_one_step = time_rotate_one_step_sum.count() / (2 * count);
-    auto avg_rotate_random = time_rotate_random_sum.count() / count;
-    auto avg_conjugate = time_conjugate_sum.count() / count;
     auto avg_serialize = time_serialize_sum.count() / count;
 #ifdef SEAL_USE_ZLIB
     auto avg_serialize_zlib = time_serialize_zlib_sum.count() / count;
@@ -682,18 +508,6 @@ std::cout << "-----------------------------------------------------------" << st
     cout << "Average decode: " << avg_decode << " microseconds" << endl;
     cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
     cout << "Average decrypt: " << avg_decrypt << " microseconds" << endl;
-    cout << "Average add: " << avg_add << " microseconds" << endl;
-    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
-    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
-    cout << "Average square: " << avg_square << " microseconds" << endl;
-    if (context.using_keyswitching())
-    {
-        cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
-        cout << "Average rescale: " << avg_rescale << " microseconds" << endl;
-        cout << "Average rotate vector one step: " << avg_rotate_one_step << " microseconds" << endl;
-        cout << "Average rotate vector random: " << avg_rotate_random << " microseconds" << endl;
-        cout << "Average complex conjugate: " << avg_conjugate << " microseconds" << endl;
-    }
     cout << "Average serialize ciphertext: " << avg_serialize << " microseconds" << endl;
 #ifdef SEAL_USE_ZLIB
     cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
@@ -705,9 +519,7 @@ std::cout << "-----------------------------------------------------------" << st
     auto totTimeEncryption = avg_encode+avg_encrypt+avg_serialize;
     auto totTimeDecryption = avg_decode+avg_decrypt;
    if (file.is_open()) {
-        //file << totTimeEncryption  << "," << buf_sizeNone << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
         file << grado << "," << totTimeEncryption   << ","<< buf_sizeZLIB<< "," << buf_sizeZstandard << ","  << dimension << "," <<totTimeDecryption<< "\n";
-
         file.close();
         std::cout << "Data saved to encryption_dataCkks.csv" << std::endl;
     } else {
@@ -730,15 +542,6 @@ void ckks_variance(SEALContext context)
     cout<< "-----------------------------------------------------------"<<endl;
     auto &parms = context.first_context_data()->parms();
     size_t poly_modulus_degree = parms.poly_modulus_degree();
-    // Step 2: Access and print the prime moduli (coefficient modulus primes)
-    auto coeff_modulus = parms.coeff_modulus();
-    cout << "Prime Modulus values used in the coefficient modulus: " << endl;
-    
-    for (const auto& prime : coeff_modulus)
-    {
-        cout << prime.value() << endl;
-    }
-
 
     cout << "Generating secret/public keys: ";
     KeyGenerator keygen(context);
@@ -788,15 +591,6 @@ void ckks_variance(SEALContext context)
     chrono::microseconds time_decode_sum(0);
     chrono::microseconds time_encrypt_sum(0);
     chrono::microseconds time_decrypt_sum(0);
-    chrono::microseconds time_add_sum(0);
-    chrono::microseconds time_multiply_sum(0);
-    chrono::microseconds time_multiply_plain_sum(0);
-    chrono::microseconds time_square_sum(0);
-    chrono::microseconds time_relinearize_sum(0);
-    chrono::microseconds time_rescale_sum(0);
-    chrono::microseconds time_rotate_one_step_sum(0);
-    chrono::microseconds time_rotate_random_sum(0);
-    chrono::microseconds time_conjugate_sum(0);
     chrono::microseconds time_serialize_sum(0);
 #ifdef SEAL_USE_ZLIB
     chrono::microseconds time_serialize_zlib_sum(0);
@@ -820,10 +614,9 @@ void ckks_variance(SEALContext context)
     double avegareFactor=  1/householders; 
     
     vector<double> average_vector;
-    vector<double> average_vectorPos;//(ckks_encoder.slot_count(), 0.0);
-   // vector<double> adjustScaleVector;
-   int slot=0;
-   cout<<"slot disponibili"<< ckks_encoder.slot_count()<<endl;
+    vector<double> average_vectorPos;
+    int slot=0;
+    cout<<"Available slot"<< ckks_encoder.slot_count()<<endl;
     for (size_t i = 0; i < ckks_encoder.slot_count(); i++)
     {
         if (i % fieldFactor == 0 && i<=householders*fieldFactor) {
@@ -840,9 +633,10 @@ void ckks_variance(SEALContext context)
         }
 
     }
-    cout<<"slot usati: "<<slot<<endl;
+    cout<<"Used slot: "<<slot<<endl;
+
        // Print the data
-   // cout << "data: ";
+    //cout << "data: ";
     //for (double val : pod_vector)
     //{
      //   cout << val << " ";
@@ -873,12 +667,13 @@ void ckks_variance(SEALContext context)
         encryptor.encrypt(plain, encrypted);
         time_end = chrono::high_resolution_clock::now();
         time_encrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
+        size_t buf_sizeEncrypt = static_cast<size_t>(encrypted.save_size(compr_mode_type::none));
 
-
+        cout << "Variance packet dimension: "<< buf_sizeEncrypt << endl;
         /*
         [Add]
         */
-      time_start_variance = chrono::high_resolution_clock::now();
+        time_start_variance = chrono::high_resolution_clock::now();
         Ciphertext SumC = encrypted;
         Ciphertext encrypted2 = encrypted;
         time_start = chrono::high_resolution_clock::now();
@@ -888,8 +683,7 @@ void ckks_variance(SEALContext context)
         evaluator.add_inplace(SumC, encrypted);
         rotation++;
         }
-      //cout<<"rotazioni: "<< rotation<<endl;
-        //MEDIA
+        //MEAN
         Plaintext plainAverage;
         Plaintext plainAveragePos;
         Ciphertext AverageNegated;
@@ -899,10 +693,10 @@ void ckks_variance(SEALContext context)
         evaluator.multiply_plain(SumC, plainAverage, AverageNegated);   
         evaluator.relinearize_inplace(AverageNegated, relin_keys);
 
-    evaluator.rescale_to_next_inplace(AverageNegated);
+        evaluator.rescale_to_next_inplace(AverageNegated);
     
-    Plaintext plainAverageN(poly_modulus_degree, 0);
-       decryptor.decrypt(AverageNegated, plainAverageN);
+        Plaintext plainAverageN(poly_modulus_degree, 0);
+        decryptor.decrypt(AverageNegated, plainAverageN);
         //vector<double> pod_vector4(ckks_encoder.slot_count());
         //ckks_encoder.decode(plainAverageN, pod_vector4); 
         //cout << "Average: ";
@@ -910,7 +704,7 @@ void ckks_variance(SEALContext context)
         //        cout << pod_vector4[i]<< " ";
         //
         //    }
-//
+
         Ciphertext CSubstracted;
         
         AverageNegated.scale()=pow(2.0, scaleFactor);
@@ -922,28 +716,11 @@ void ckks_variance(SEALContext context)
 
         Plaintext plainSquared(poly_modulus_degree, 0);
         decryptor.decrypt(squared, plainSquared);
-        //vector<double> pod_vectorSquared(ckks_encoder.slot_count());
-        //ckks_encoder.decode(plainSquared, pod_vectorSquared); 
-        
-        //cout << "pod_vectorSquared: ";
-        //for (int i = 0; i <= householders-1; i++){
-       //         cout << pod_vectorSquared[i]<< " ";
-        //
-        //    }
+      
         evaluator.relinearize_inplace(squared, relin_keys);
         evaluator.rescale_to_next_inplace(squared);
         squared.scale()=pow(2.0, scaleFactor);
         Ciphertext SumSquared = squared;
- 
-        //Plaintext plain3(poly_modulus_degree, 0);
-        //decryptor.decrypt(squared, plain3);
-        //vector<double> pod_vector3(ckks_encoder.slot_count());
-        //ckks_encoder.decode(plain3, pod_vector3); 
-        //cout << "Squared: ";
-        //for (int i = 0; i <= householders-1; i++){
-        //        cout << pod_vector3[i]<< " ";
-        //
-        //    }
   
         for (int i=0; i<=ckks_encoder.slot_count()/fieldFactor-1; i++){
         evaluator.rotate_vector_inplace(squared, fieldFactor, gal_keys);
@@ -964,9 +741,7 @@ void ckks_variance(SEALContext context)
         decryptor.decrypt(SumSquared, plain2);
         time_end = chrono::high_resolution_clock::now();
         time_decrypt_sum += chrono::duration_cast<chrono::microseconds>(time_end - time_start);
-        
-        
-
+  
          /*
         [Decode]
         */
@@ -978,17 +753,17 @@ void ckks_variance(SEALContext context)
 
          // Print the decrypted data
          /*
-    cout << "Decrypted data: ";
+            cout << "Decrypted data: ";
 
-    for (int i = 0; i <= householders-1; i=i+fieldFactor){
-        cout << pod_vector2[i]<< " ";
-  
-    }
-*/
+            for (int i = 0; i <= householders-1; i=i+fieldFactor){
+                cout << pod_vector2[i]<< " ";
+        
+            }
+            */
 
     // Calculate and print the error
     // double error = calculate_error(pod_vector, pod_vector2, fieldFactor);
-  //  cout << "Average error between original and decrypted data: " << error << endl;
+    // cout << "Average error between original and decrypted data: " << error << endl;
         /*
         [Serialize Ciphertext]
         */
@@ -1030,15 +805,6 @@ void ckks_variance(SEALContext context)
     auto avg_decode = time_decode_sum.count() / count;
     auto avg_encrypt = time_encrypt_sum.count() / count;
     auto avg_decrypt = time_decrypt_sum.count() / count;
-    auto avg_add = time_add_sum.count() / (3 * count);
-    auto avg_multiply = time_multiply_sum.count() / count;
-    auto avg_multiply_plain = time_multiply_plain_sum.count() / count;
-    auto avg_square = time_square_sum.count() / count;
-    auto avg_relinearize = time_relinearize_sum.count() / count;
-    auto avg_rescale = time_rescale_sum.count() / count;
-    auto avg_rotate_one_step = time_rotate_one_step_sum.count() / (2 * count);
-    auto avg_rotate_random = time_rotate_random_sum.count() / count;
-    auto avg_conjugate = time_conjugate_sum.count() / count;
     auto avg_serialize = time_serialize_sum.count() / count;
 #ifdef SEAL_USE_ZLIB
     auto avg_serialize_zlib = time_serialize_zlib_sum.count() / count;
@@ -1056,18 +822,6 @@ auto avg_tot_decrypt=avg_decode+avg_decrypt;
     cout << "Average decode: " << avg_decode << " microseconds" << endl;
     cout << "Average encrypt: " << avg_encrypt << " microseconds" << endl;
     cout << "Average decrypt: " << avg_decrypt << " microseconds" << endl;
-    cout << "Average add: " << avg_add << " microseconds" << endl;
-    cout << "Average multiply: " << avg_multiply << " microseconds" << endl;
-    cout << "Average multiply plain: " << avg_multiply_plain << " microseconds" << endl;
-    cout << "Average square: " << avg_square << " microseconds" << endl;
-    if (context.using_keyswitching())
-    {
-        cout << "Average relinearize: " << avg_relinearize << " microseconds" << endl;
-        cout << "Average rescale: " << avg_rescale << " microseconds" << endl;
-        cout << "Average rotate vector one step: " << avg_rotate_one_step << " microseconds" << endl;
-        cout << "Average rotate vector random: " << avg_rotate_random << " microseconds" << endl;
-        cout << "Average complex conjugate: " << avg_conjugate << " microseconds" << endl;
-    }
     cout << "Average serialize ciphertext: " << avg_serialize << " microseconds" << endl;
 #ifdef SEAL_USE_ZLIB
     cout << "Average compressed (ZLIB) serialize ciphertext: " << avg_serialize_zlib << " microseconds" << endl;
@@ -1080,12 +834,6 @@ auto avg_tot_decrypt=avg_decode+avg_decrypt;
     cout.flush();
 }
 
-void encryption_ckks_paillier(SEALContext context){
-    //Init CKKS
-   
-    //Init Paillier
-
-}
 void paillier_example_sum(int num_addends) {
     int modulus_bits = 3072;
     paillier_pubkey_t *pubkey;
@@ -1178,40 +926,39 @@ void paillier_example_sum(int num_addends) {
 
 
 void generate_ckks_key_sizes(const std::string &filename) {
-    // Apri il file per salvare le dimensioni delle chiavi
+    
+    // Open the file
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
         std::cerr << "Error opening file." << std::endl;
         return;
     }
 
-    // Intestazione del file CSV
     outfile << "Polynomial Degree,Public Key (bytes),Secret Key (bytes),Relinearization Key (bytes),Galois Key (bytes)\n";
 
-
-    // Partiamo dal grado 1024 e raddoppiamo fino a 32768
     for (size_t poly_degree = 1024; poly_degree <= 32768; poly_degree *= 2) {
-        // Configura i parametri del contesto CKKS con SEAL
+
         seal::EncryptionParameters params(scheme_type::ckks);
         params.set_poly_modulus_degree(poly_degree);
         params.set_coeff_modulus(CoeffModulus::BFVDefault(poly_degree)); 
 
         // Inizializza il contesto
-//        auto context = SEALContext::Create(params);
+        // auto context = SEALContext::Create(params);
         SEALContext context(params);
         RelinKeys relin_keys;
     	GaloisKeys gal_keys;
  	
     	PublicKey public_key;
    
-        // Genera le chiavi
+        // Key Generation
          KeyGenerator keygen(context);
          keygen.create_public_key(public_key);
       	 auto secret_key = keygen.secret_key();
+
   if (context.using_keyswitching()){
          keygen.create_relin_keys(relin_keys);
          keygen.create_galois_keys(gal_keys);
-}
+        }
         // Scrivi le dimensioni delle chiavi nel file
         outfile << poly_degree << ","
                 << public_key.save_size(seal::compr_mode_type::none) << ","
@@ -1222,26 +969,26 @@ void generate_ckks_key_sizes(const std::string &filename) {
         std::cout << "Processed polynomial degree: " << poly_degree << std::endl;
     }
 
-    // Chiudi il file
     outfile.close();
     std::cout << "Key sizes saved to " << filename << std::endl;
 }
 
 double calculateVariance(const std::vector<double>& data, int iterations) {
+    
     double totalTime = 0.0;
     double variance = 0.0;
 
     for (int iter = 0; iter < iterations; ++iter) {
         auto start = std::chrono::high_resolution_clock::now();
 
-        // Calcola la media
+        // Mean
         double sum = 0.0;
         for (double value : data) {
             sum += value;
         }
         double mean = sum / data.size();
 
-        // Calcola la varianza
+        // Variance
         variance = 0.0;
         for (double value : data) {
             variance += (value - mean) * (value - mean);
@@ -1253,7 +1000,6 @@ double calculateVariance(const std::vector<double>& data, int iterations) {
         totalTime += elapsed.count();
     }
 
-    // Calcola il tempo medio
     double averageTime = totalTime / iterations;
     std::cout << "Average time taken for variance calculation over " << iterations << " iterations: " << averageTime << " ms" << std::endl;
 
@@ -1262,20 +1008,14 @@ double calculateVariance(const std::vector<double>& data, int iterations) {
 
 int main()
 {
-//Data preparation SECTION
+
+//AES and CKKS Evaluation
 size_t poly_modulus_degree = 1024;
 
 for (int i = 1; i <= 255; i++) {
+
     size_t packet_size = 20;
     generate_random_data(i);
-    
-    // Stampa dati generati per debug
-    /*
-    for (const auto& num : data_double) {
-        std::cout << num << " ";
-    }
-    std::cout << std::endl;
-    */
 
     // ENCRYPTION SECTION
     // AES ENCRYPTION
@@ -1283,60 +1023,47 @@ for (int i = 1; i <= 255; i++) {
 
     // CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
-    
-
-    // Controlla se `i` ha raggiunto metà del grado del polinomio e raddoppia se necessario
     if (i > poly_modulus_degree / 2) {
         poly_modulus_degree *= 2;
         if (poly_modulus_degree > 16384) {
-            poly_modulus_degree = 16384; // Limite massimo per il grado del polinomio
+            poly_modulus_degree = 16384; 
         }
     }
 
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree, seal::sec_level_type::tc256));
 
-    // CKKS Encryption con parametri aggiornati
     ckks_encryption(poly_modulus_degree, parms, i);
 
-    // EL Gamal Encryption
-    // elGamal();
-
-    // Paillier Encryption
-    // paillier();
+    
     // paillier_example_sum(i);
 }
+//Alternative Scheme evaluation
 
-//SCENARIO I - CKKS - PAILLIER
-EncryptionParameters parmsScenario1(scheme_type::ckks);
-size_t poly_modulus_degreeScenario1= 1024;
-parmsScenario1.set_poly_modulus_degree(poly_modulus_degreeScenario1);
-parmsScenario1.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degreeScenario1, seal::sec_level_type::tc128));
+    //El Gamal Encryption
+    elGamal();
+
+    // Paillier Encryption
+     paillier();
 
 //encryption_ckks_paillier(parmsScenario1);
-//SCENARIO II - CKKS Sum
-//Scenario III - CKKS Variance
+
+//CKKS Key size comparison   
+    //generate_ckks_key_sizes("ckks_key_sizes.csv");
+
+//Scenario - CKKS Variance
 
     EncryptionParameters parms2(scheme_type::ckks);
     size_t poly_modulus_degree2= 8192;
     parms2.set_poly_modulus_degree(poly_modulus_degree2);
     parms2.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree2, {60,29,29,60}));
-    
-    //parms.set_coeff_modulus(CoeffModulus::Create(poly_modulus_degree, {40, 20, 20, 29}));
-    //parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree));
-    //ckks_variance(parms2);
 
-    generate_ckks_key_sizes("ckks_key_sizes.csv");
-
-    //Calcolo varianza in locale
-     // Crea il vettore con elementi dati da 0.005 + i * 0.005
+    //Local variance calculation 
     std::vector<double> data;
     int n = 4096;
     for (int i = 0; i < n; ++i) {
         data.push_back(0.0005 + i * 0.0005);
     }
-
-   // Calcola la varianza e misura il tempo
     double variance = calculateVariance(data, 10);
     std::cout << "Variance: " << variance << std::endl;
 }
