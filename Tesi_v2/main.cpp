@@ -81,7 +81,15 @@ void elGamal() {
     //std::vector<uint8_t> recoveredText;
     //ElGamalDecryptor decryptor(privateKey);
     //StringSource(cipherText.data(), cipherText.size(), true, new PK_DecryptorFilter(rng, decryptor, new VectorSink(recoveredText)));
-
+    std::ofstream file("elGamal.csv", std::ios::app);
+    if (file.is_open()) {
+        file << avg_encode << "," 
+             << cipherText.size() << "\n";
+        file.close();
+        std::cout << "Data saved to elGamal.csv" << std::endl;
+    } else {
+        std::cerr << "Error opening file!" << std::endl;
+    }
 }
 
 //AES function used to elaborate and analyze the AES encryption and decryption time and packet dimension
@@ -193,6 +201,8 @@ paillier_plaintext_t* convert_vector_to_paillier_plaintext(const std::vector<uin
 }
 
 void paillier() {
+   
+   
 
     paillier_plaintext_t* plaintext = convert_vector_to_paillier_plaintext(packet);
     int modulus_bits = 3072;
@@ -203,6 +213,7 @@ void paillier() {
     // Key Generation
     paillier_keygen(modulus_bits, &pubkey, &privkey, paillier_get_rand_devurandom);
     updateTime(buffer, sizeof(buffer));
+
 
     size_t pubkey_size = (size_t)mpz_sizeinbase(pubkey->n, 2); // Dimensione in bit
     printf("Public Key Size (N): %zu bits, %zu bytes\n", pubkey_size, (pubkey_size + 7) / 8);
@@ -265,6 +276,7 @@ void paillier() {
     std::cout << "Decrypted sum: " << decrypted_sum_str << std::endl;
     free(decrypted_sum_str); 
 
+
     // Freeing memory
     paillier_freepubkey(pubkey);
     paillier_freeprvkey(privkey);
@@ -275,7 +287,18 @@ void paillier() {
     paillier_freeciphertext(ciphertext1);
     paillier_freeciphertext(ciphertext2);
     paillier_freeciphertext(sum_ciphertext);
+    // Export in csv
     
+    std::ofstream file("paillier.csv", std::ios::app);
+    if (file.is_open()) {
+        file << avg_encode << "," 
+             << avg_decode << "," 
+             << ciphertext_size << "\n";
+        file.close();
+        std::cout << "Data saved to paillier.csv" << std::endl;
+    } else {
+        std::cerr << "Error opening file!" << std::endl;
+    }
 }
 
 
@@ -847,7 +870,7 @@ void paillier_example_sum(int num_addends) {
         paillier_plaintext_t *plaintext_addend = paillier_plaintext_from_ui(i);
         mpz_add(plaintext_sum, plaintext_sum, plaintext_addend->m);  // Somma plaintext per verifica
 
-        // Time cryptografy
+        // Time encryption
         auto time_start = std::chrono::high_resolution_clock::now();
         paillier_ciphertext_t *ciphertext_addend = paillier_enc(NULL, pubkey, plaintext_addend, paillier_get_rand_devurandom);
         auto time_end = std::chrono::high_resolution_clock::now();
@@ -999,11 +1022,11 @@ size_t poly_modulus_degree = 1024;
 
 for (int i = 1; i <= 255; i++) {
 
-    //generate_random_data(i);
+    generate_random_data(i);
 
     // ENCRYPTION SECTION
     // AES ENCRYPTION
-    aes_encryption(i);
+    // aes_encryption(i);
 
     // CKKS Encryption
     EncryptionParameters parms(scheme_type::ckks);
@@ -1017,18 +1040,19 @@ for (int i = 1; i <= 255; i++) {
     parms.set_poly_modulus_degree(poly_modulus_degree);
     parms.set_coeff_modulus(CoeffModulus::BFVDefault(poly_modulus_degree, seal::sec_level_type::tc128));
 
-    ckks_encryption(poly_modulus_degree, parms, i);
+    //ckks_encryption(poly_modulus_degree, parms, i);
 
     
-    paillier_example_sum(i);
-}
-//Alternative Scheme evaluation
+    //paillier_example_sum(i);
+    //Alternative Scheme evaluation
 
     //El Gamal Encryption
      elGamal();
 
     // Paillier Encryption
      paillier();
+}
+
 
 //encryption_ckks_paillier(parmsScenario1);
 
